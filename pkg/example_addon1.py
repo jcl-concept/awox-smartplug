@@ -36,11 +36,12 @@ from gateway_addon import Database, Adapter, Device, Property, APIHandler, APIRe
 # APIHandler. Needed if you want to provide an API for a UI extension.
 # APIResponse. Needed if you want to provide an API for a UI extension.
 
-try:
-    from .internet_radio_api_handler import *
-    #print("APIHandler imported")
-except Exception as ex:
-    print("Error, unable to load APIHandler (which is used for UI extention): " + str(ex))
+# This addon does not load part from other files, but if you had a big addon you might want to split it into separate parts. For example, you could have a file called "example_addon1_api_handler.py" at the same level as example_addon1.py, and import it like this:
+#try:
+#    from .internet_radio_api_handler import *
+#    print("APIHandler imported")
+#except Exception as ex:
+#    print("Error, unable to load APIHandler: " + str(ex))
 
 
 # Not sure what this is used for, but leave it in.
@@ -63,9 +64,9 @@ if 'WEBTHINGS_HOME' in os.environ:
 # Adapter  <- you are here
 # - Device  
 # - - Property  
+# - Api handler
 
-
-class AddonAdapter(Adapter):
+class ExampleAddon1Adapter(Adapter):
     """Adapter for addon """
 
     def __init__(self, verbose=False):
@@ -98,6 +99,10 @@ class AddonAdapter(Adapter):
 
         # There is a very useful variable called "user_profile" that has useful values from the controller.
         print("self.user_profile: " + str(self.user_profile))
+        
+        
+        # This addon has a "hidden parent" itself, the manager_proxy.
+        #print("self.adapter.manager_proxy: " + str(self.adapter.manager_proxy))
         
         
         # Create some path strings. These point to locations on the drive.
@@ -165,8 +170,8 @@ class AddonAdapter(Adapter):
                 print("example_addon1_device created")
                 
             # You can set the device to connected or disconnected. If it's in disconnected state the thing will be a bit more opaque.
-            self.devices['example-addon1'].connected = True
-            self.devices['example-addon1'].connected_notify(True)
+            self.devices['example-addon1-thing'].connected = True
+            self.devices['example-addon1-thing'].connected_notify(True)
 
         except Exception as ex:
             print("Could not create internet_radio_device: " + str(ex))
@@ -311,7 +316,7 @@ class AddonAdapter(Adapter):
         if self.DEBUG:
             print("Bye!")
         try:
-            self.devices['example-addon1'].properties['status'].update( "Bye")
+            self.devices['example-addon1-thing'].properties['status'].update( "Bye")
         except Exception as ex:
             print("Error setting status on thing: " + str(ex))
         
@@ -386,13 +391,13 @@ class AddonAdapter(Adapter):
 # Adapter
 # - Device  <- you are here
 # - - Property  
-
+# - Api handler
 
 
 class ExampleAddon1Device(Device):
     """Internet Radio device type."""
 
-    def __init__(self, adapter, radio_station_names_list, audio_output_list):
+    def __init__(self, adapter):
         """
         Initialize the object.
         adapter -- the Adapter managing this device
@@ -490,7 +495,7 @@ class ExampleAddon1Device(Device):
 # Adapter
 # - Device
 # - - Property  <- you are here
-
+# - Api handler
 
 class ExampleAddon1Property(Property):
 
@@ -597,16 +602,17 @@ class ExampleAddon1APIHandler(APIHandler):
 
         # Intiate extension addon API handler
         try:
-
+            
             APIHandler.__init__(self, self.adapter.addon_name) # gives the api handler the same id as the adapter
-            self.manager_proxy.add_api_handler(self) # tell the controller that the api handler now exists
+            self.adapter.manager_proxy.add_api_handler(self) # tell the controller that the api handler now exists
             
         except Exception as e:
             print("Error: failed to init API handler: " + str(e))
         
-#
-#  HANDLE REQUEST
-#
+        
+    #
+    #  HANDLE REQUEST
+    #
 
     def handle_request(self, request):
         """
@@ -614,8 +620,6 @@ class ExampleAddon1APIHandler(APIHandler):
 
         request -- APIRequest object
         """
-        
-        
         
         try:
         
@@ -706,20 +710,3 @@ class ExampleAddon1APIHandler(APIHandler):
 
 
 
-#
-#  Helper functions
-#
-
-def run_command(cmd, timeout_seconds=20):
-    try:
-        p = subprocess.run(cmd, timeout=timeout_seconds, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, universal_newlines=True)
-
-        if p.returncode == 0:
-            return p.stdout
-        else:
-            if p.stderr:
-                return "Error: " + str(p.stderr)
-
-    except Exception as e:
-        print("Error running command: "  + str(e))
-        
