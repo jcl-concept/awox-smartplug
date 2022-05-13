@@ -1,4 +1,16 @@
-"""Example addon for Candle Controller / Webthings Gateway."""
+"""
+
+Example addon for Candle Controller / Webthings Gateway.
+
+This addon has the following hierarchy:
+
+Adapter
+- Device (1x)
+- - Property (4x)
+- API handler
+
+
+"""
 
 
 import os
@@ -14,7 +26,7 @@ import time
 #import subprocess
 
 # This loads the parts of the addon.
-from gateway_addon import Database, Adapter, Device, Property
+from gateway_addon import Database, Adapter, Device, Property, APIHandler, APIResponse
 # Database - needed to read from the settings database. If your addon doesn't have any settings, then you don't need this.
 
 # Adapter. Needed if you want to provide things' to the controller.
@@ -45,6 +57,14 @@ if 'WEBTHINGS_HOME' in os.environ:
 
 
 
+
+# The adapter is the top level of this hierarchy
+
+# Adapter  <- you are here
+# - Device  
+# - - Property  
+
+
 class AddonAdapter(Adapter):
     """Adapter for addon """
 
@@ -55,183 +75,111 @@ class AddonAdapter(Adapter):
         verbose -- whether or not to enable verbose logging
         """
 
-        #print("initialising adapter from class")
-        self.pairing = False
         self.ready = False # set this to True once the init process is complete.
         self.addon_name = 'example-addon1'
-        self.DEBUG = False
-        self.name = self.__class__.__name__
+        
+        
+        self.name = self.__class__.__name__ # TODO: is this needed?
         Adapter.__init__(self, self.addon_name, self.addon_name, verbose=verbose)
 
-
-
-        # Setup persistence
-        #for path in _CONFIG_PATHS:
-        #    if os.path.isdir(path):
-        #        self.persistence_file_path = os.path.join(
-        #            path,
-        #            'internet-radio-persistence.json'
-        #        )
-        #        print("self.persistence_file_path is now: " + str(self.persistence_file_path))
-
-        self.addon_path = os.path.join(self.user_profile['addonsDir'], self.addon_name)
-        #self.persistence_file_path = os.path.join(os.path.expanduser('~'), '.mozilla-iot', 'data', self.addon_name,'persistence.json')
-        self.persistence_file_path = os.path.join(self.user_profile['dataDir'], self.addon_name, 'persistence.json')
-        self.bluetooth_persistence_file_path = os.path.join(self.user_profile['dataDir'], 'bluetoothpairing', 'persistence.json')
-
-        self.running = True
+        # set up some variables
+        self.DEBUG = False
         
-            
-        # Get audio output options
+        # this is a completely random set of items. It is sent to the user interface through the API handler, which till turn it into a list
+        self.items_list = [
+                        {'name':'item 1', 'value':55},
+                        {'name':'item 2', 'value':25},
+                        {'name':'item 3', 'value':88},
+                    ]
+
+
+
+
+
+        # There is a very useful variable called "user_profile" that has useful values from the controller.
+        print("self.user_profile: " + str(self.user_profile))
+        
+        
+        # Create some path strings. These point to locations on the drive.
+        self.addon_path = os.path.join(self.user_profile['addonsDir'], self.addon_name) # addonsDir points to the directory that holds all the addons (/home/pi/.webthings/addons).
+        self.persistence_file_path = os.path.join(self.user_profile['dataDir'], self.addon_name, 'persistence.json') # dataDir points to the directory where the addons are allowed to store their data (/home/pi/.webthings/data)
+        
         if sys.platform == 'darwin':
             print("running on a Mac")
 			
 			
-        # Get persistent data
+        self.persistent_data = {}
+            
+        # 1. Get persistent data
         try:
             with open(self.persistence_file_path) as f:
                 self.persistent_data = json.load(f)
                 if self.DEBUG:
-                    print('self.persistent_data loaded from file: ' + str(self.persistent_data))
-                try:
-                    if 'audio_output' not in self.persistent_data:
-                        if self.DEBUG:
-                            print("audio output was not in persistent data, adding it now.")
-                        if len(self.audio_controls) > 0:
-                            self.persistent_data['audio_output'] = str(self.audio_controls[0]['human_device_name'])
-                        else:
-                            self.persistent_data['audio_output'] = ""
-                except:
-                    print("Error fixing audio output in persistent data")
-                
-                if self.DEBUG:
-                    print("Persistence data was loaded succesfully.")
-                    
+                    print('self.persistent_data was loaded from file: ' + str(self.persistent_data))
                     
         except:
             if self.DEBUG:
                 print("Could not load persistent data (if you just installed the add-on then this is normal)")
-            try:
-                first_audio_output = ""
-                if len(self.audio_controls) > 0:
-                    if 'human_device_name' in self.audio_controls[0]:
-                        first_audio_output = self.audio_controls[0]['human_device_name']
-                self.persistent_data = {'power':False,'station':'FIP','volume':100, 'audio_output':  first_audio_output, 'stations':[{'name':'FIP','stream_url':'http://direct.fipradio.fr/live/fip-midfi.mp3'}] }
-            
-            except Exception as ex:
-                print("Error in handling missing persistent data file: " + str(ex))
-                self.persistent_data = {'power':False,'station':'FIP','volume':100, 'audio_output': "", 'stations':[{'name':'FIP','stream_url':'http://direct.fipradio.fr/live/fip-midfi.mp3'}] }
 
-
-        # LOAD CONFIG
-
-        # self.persistent_data['current_stream_url'] = None
-        self.radio_stations_names_list = []
+        # 2. now that we have the persistent data (except on the first run), we allow the basic settings to override some of the values, if they are set.
 
         try:
             self.add_from_config()
-
         except Exception as ex:
             print("Error loading config: " + str(ex))
 
-        if 'playing' not in self.persistent_data:
-            self.persistent_data['playing'] = False
+        # 3. Now we check if all the values that should exist actually do
 
-        if 'bluetooth_device_mac' not in self.persistent_data:
-            self.persistent_data['bluetooth_device_mac'] = None
+        if 'state' not in self.persistent_data:
+            self.persistent_data['state'] = False
+
+        if 'slider' not in self.persistent_data:
+            self.persistent_data['slider'] = 0
             
-        if 'current_stream_url' not in self.persistent_data:
-            self.persistent_data['current_stream_url'] = None
+        if 'dropdown' not in self.persistent_data:
+            self.persistent_data['dropdown'] = 'Auto'
 
 
-        # Start the API handler
+
+        # Start the API handler. This will allow the user interface to connect
         try:
             if self.DEBUG:
                 print("starting api handler")
-            self.api_handler = InternetRadioAPIHandler(self, verbose=True)
-            #self.manager_proxy.add_api_handler(self.extension)
+            self.api_handler = ExampleAddon1APIHandler(self, verbose=True)
             if self.DEBUG:
-                print("Extension API handler initiated")
+                print("Adapter: API handler initiated")
         except Exception as e:
             if self.DEBUG:
-                print("Failed to start API handler (this only works on gateway version 0.10 or higher). Error: " + str(e))
+                print("Error, failed to start API handler: " + str(e))
 
 
-        # Give Bluetooth Pairing addon some time to reconnect to the speaker
-        if self.persistent_data['bluetooth_device_mac'] != None:
-            if not self.DEBUG:
-                time.sleep(15)
-        
-        if self.bluetooth_device_check():
-            if self.DEBUG:
-                print("Bluetooth output device seems to be available (in theory)")
-        
-        if self.DEBUG:
-            print("complete self.audio_output_options : " + str(self.audio_output_options))
-        
-        # Create the radio device
+        # Create the thing
         try:
-            internet_radio_device = InternetRadioDevice(self, self.radio_stations_names_list, self.audio_output_options)
-            self.handle_device_added(internet_radio_device)
+            # Create the device object
+            example_addon1_device = ExampleAddon1Device(self)
+            
+            # Tell the controller about the new device that was created. This will add the new device to self.devices
+            self.handle_device_added(example_addon1_device)
+            
             if self.DEBUG:
-                print("internet_radio_device created")
-            self.devices['internet-radio'].connected = True
-            self.devices['internet-radio'].connected_notify(True)
+                print("example_addon1_device created")
+                
+            # You can set the device to connected or disconnected. If it's in disconnected state the thing will be a bit more opaque.
+            self.devices['example-addon1'].connected = True
+            self.devices['example-addon1'].connected_notify(True)
 
         except Exception as ex:
             print("Could not create internet_radio_device: " + str(ex))
 
 
-        self.player = None
+        
+        # Just in case any new values were created in the persistent data store, let's save if to disk
+        self.save_persistent_data()
+        
+        # The addon is now ready
+        self.ready = True 
 
-        # Restore volume
-        #try:
-        #    self.set_audio_volume(self.persistent_data['volume'])
-        #except Exception as ex:
-        #    print("Could not restore radio station: " + str(ex))
-
-
-        # Restore station
-        try:
-            if self.persistent_data['station'] != None:
-                if self.DEBUG:
-                    print("Setting radio station to the one found in persistence data: " + str(self.persistent_data['station']))
-                self.set_radio_station(self.persistent_data['station'])
-            else:
-                if self.DEBUG:
-                    print("No radio station was set in persistence data")
-        except Exception as ex:
-            print("couldn't set the radio station name to what it was before: " + str(ex))
-
-
-        # Restore power
-        try:
-            self.set_radio_state(bool(self.persistent_data['power']))
-        except Exception as ex:
-            print("Could not restore radio station: " + str(ex))
-
-        #print("internet radio adapter init complete")
-
-        self.ready = True
-
-        if self.get_song_details:
-            while self.running: # and self.player != None
-                time.sleep(1)
-            
-                if self.persistent_data['playing'] == True:
-                    try:
-                        #if self.DEBUG:
-                        #    print(str(self.adapter.poll_counter))
-                        if self.poll_counter == 0:
-                            self.now_playing = self.get_artist()
-                    except Exception as ex:
-                        print("error updating now_playing: " + str(ex))
-            
-                    #if self.adapter.playing:
-                    self.poll_counter += 1
-                    if self.poll_counter > 20:
-                        self.poll_counter = 0
-                    
+       
 
 
 
@@ -276,629 +224,123 @@ class AddonAdapter(Adapter):
                 if self.DEBUG:
                     print("A number setting preference was in config: " + str(not self.a_number_setting))
             
-            
 
         except Exception as ex:
             print("Error in add_from_config: " + str(ex))
 
 
 
+    #
+    #  CHANGING THE PROPERTIES
+    #
 
-
-
+    # It's nice to have a central location where a change in a property is managed.
 
     def set_state(self,state):
         print("in set_state with state: " + str(state))
         
-        set_state
+        # saves the new state in the persistent data file, so that the addon can restore the correct state if it restarts
+        self.persistent_data['state'] = state
+        self.save_persistent_data() 
+        
+        # A cool feature: you can create popups in the interface this way:
+        if state == True:
+            self.send_pairing_prompt("You switched on the thing") # please don't overdo it with the pairing prompts..
+        
+        # We tell the property to change its value. This is a very round-about way, and you could place all this logic inside the property instead. It's a matter of taste.
+        try:
+            self.devices['example-addon1-thing'].properties['state'].update( state )
+        except Exception as ex:
+            print("error setting state on thing: " + str(ex))
+        
+        
+        
+    def set_slider(self,value):
+        print("in set_slider with value: " + str(value))
+        
+        # saves the new state in the persistent data file, so that the addon can restore the correct state if it restarts
+        self.persistent_data['slider'] = value
+        self.save_persistent_data() 
+        
+        try:
+            self.devices['example-addon1-thing'].properties['slider'].update( value )
+        except Exception as ex:
+            print("error setting slider value on thing: " + str(ex))
+        
+        
+        
+    def set_dropdown(self,value):
+        print("in set_dropdown with value: " + str(value))
+        
+        # saves the new state in the persistent data file, so that the addon can restore the correct state if it restarts
+        self.persistent_data['dropdown'] = value
+        self.save_persistent_data() 
+        
+        # A cool feature: you can create popups in the interface this way:
+        if state == True:
+            self.send_pairing_prompt("new dropdown value: " + str(value))
+        
+        # We tell the property (and the controller) that the value is changed. This is a very round-about way, and you could place all this logic inside the property instead. It's a matter of taste.
+        try:
+            self.devices['example-addon1-thing'].properties['dropdown'].update( state )
+        except Exception as ex:
+            print("error setting dropdown value on thing: " + str(ex))
         
 
 
-#
-# MAIN SETTING OF THE RADIO STATES
-#
+    #
+    # The methods below are called by the controller
+    #
 
-    def set_radio_station(self, station_name):
-        if self.DEBUG:
-            print("Setting radio station to: " + str(station_name))
-            
-        try:
-            if station_name.startswith('http'): # override to play a stream without a name
-                url = station_name
-                if self.DEBUG:
-                    print("a stream was provided instead of a name")
-                for station in self.persistent_data['stations']:
-                    if station['stream_url'] == station_name: # doing an ugly swap,
-                        if self.DEBUG:
-                            print("station name reversed match")
-                        station_name = station['name']
-                        url = station['stream_url']
-                        if str(station_name) != str(self.persistent_data['station']):
-                            if self.DEBUG:
-                                print("Saving station to persistence data")
-                            self.persistent_data['station'] = str(station_name)
-                            self.save_persistent_data()
-                        
-                        if self.DEBUG:
-                            print("setting station name on thing")
-                        
-                        self.set_station_on_thing(str(station['name']))
-                        
-            else:
-                url = ""
-                for station in self.persistent_data['stations']:
-                    if station['name'] == station_name:
-                        #print("station name match")
-                        url = station['stream_url']
-                        if str(station_name) != str(self.persistent_data['station']):
-                            if self.DEBUG:
-                                print("Saving station to persistence data")
-                            self.persistent_data['station'] = str(station_name)
-                            self.save_persistent_data()
-                        
-                        if self.DEBUG:
-                            print("setting station name on thing")
-                        
-                        self.set_station_on_thing(str(station['name']))
-                        
-        except Exception as ex:
-            print("Error figuring out station: " + str(ex))
-
-        try:
-            if url.startswith('http') or url.startswith('rtsp'):
-                if self.DEBUG:
-                    print("URL starts with http or rtsp")
-                if url.endswith('.m3u') or url.endswith('.pls'):
-                    if self.DEBUG:
-                        print("URL ended with .m3u or .pls (is a playlist): " + str(url))
-                    url = self.scrape_url_from_playlist(url)
-                    if self.DEBUG:
-                        print("Extracted URL = " + str(url))
-
-                self.persistent_data['current_stream_url'] =  url
-                self.save_persistent_data()
-                
-                # get_artist preparation
-                self.now_playing = ""
-                self.set_song_on_thing(None)
-                self.set_artist_on_thing(None)
-                self.current_stream_has_now_playing_info = True # reset this, so get_artist will try to get now_playing info
-                self.poll_counter = 18 # this will cause get_artist to be called again soon
-                
-                # Finally, if the station is changed, also turn on the radio (except for the first time)
-                if self.in_first_run:
-                    self.in_first_run = False
-                    if self.DEBUG:
-                        print("Set first_run to false")
-                else:
-                    if self.DEBUG:
-                        print("Station changed. Next: turning on the radio\n")
-                    self.set_radio_state(True)
-                
-            else:
-                self.set_status_on_thing("Not a valid URL")
-        except Exception as ex:
-            print("Error handling playlist file: " + str(ex))
-
-
-
-
-    def set_radio_state(self,power,also_call_volume=True):
-        if self.DEBUG:
-            print("in set_radio_state. Setting radio power to: " + str(power))
+    def start_pairing(self, timeout):
+        """
+        Start the pairing process. This starts when the user presses the + button on the things page.
         
-        if self.running == False:
-            if self.DEBUG:
-                print("tried to restart during unload?")
-            return
-            
-        try:
-            if self.DEBUG:
-                print("self.persistent_data['power'] in set_radio_state: " + str(self.persistent_data['power']))
-            if bool(power) != bool(self.persistent_data['power']):
-                if self.DEBUG:
-                    print("radio state changed from value in persistence.")
-                self.persistent_data['power'] = bool(power)
-                if self.DEBUG:
-                    print("self.persistent_data['power'] = power? " + str(self.persistent_data['power']) + " =?= " + str(power))
-                self.save_persistent_data()
-            else:
-                if self.DEBUG:
-                    print("radio state same as value in persistence.")
-
-                #if power:
-                #    if self.player != None:
-                #        self.player.terminate()
-                #        self.player.kill()
-
-            #
-            #  turn on
-            #
-            if power:
-                if self.player != None:
-                    if self.DEBUG:
-                        print("set_radio_state: warning, the player already existed. Stopping it first.")
-                    try:
-                        if self.respeaker_detected == False:
-                            self.player.stdin.write(b'q')
-                        self.player.terminate()
-                        self.player = None
-                    except Exception as ex:
-                        print("error terminating omxplayer with Q command. Maybe it stopped by itself?: " + str(ex))
-                        print("player.poll(): " + str( self.player.poll() ))
-                        #self.player = None
-                
-                else:
-                    if self.DEBUG:
-                        print("self.player was still None")
-                       
-                       
-                if self.respeaker_detected:
-                    if self.DEBUG:
-                        print("pkill omxplayer")
-                    os.system('pkill omxplayer')
-                    
-                else:
-                    if self.DEBUG:
-                        print("pkill ffplay")
-                    os.system('pkill ffplay')
-                self.player = None
-                
-                # Checking audio output option
-                
-                bt_connected = False
-                
-                try:
-                    if self.DEBUG:
-                        print("self.persistent_data['audio_output']: " + str(self.persistent_data['audio_output']))
-                    
-                    if self.persistent_data['audio_output'] == 'Bluetooth speaker':
-                        if self.DEBUG:
-                            print("Doing bluetooth speaker connection check")
-                        
-                        
-                        bluetooth_connection_check_output = run_command('amixer -D bluealsa scontents')
-                        if len(bluetooth_connection_check_output) > 10:
-                            bt_connected = True
-                    
-                        # Find out if another speaker was paired/connected through the Bluetooth Pairing addon
-                        else:
-                            if self.DEBUG:
-                                print("Bluetooth device mac was None. Doing bluetooth_device_check")
-                            if self.bluetooth_device_check():
-                                if self.persistent_data['bluetooth_device_mac'] != None:
-                                    bt_connected = True
-                            else:
-                                self.send_pairing_prompt("Please (re)connect a Bluetooth speaker using the Bluetooth pairing addon")
-                                if self.DEBUG:
-                                    print("bluetooth_device_check: no connected speakers?")
-                    
-                        if bt_connected:
-                            if self.DEBUG:
-                                print("Bluetooth speaker seems to be connected")
-                            #environment["SDL_AUDIODRIVER"] = "alsa"
-                            #environment["AUDIODEV"] = "bluealsa:" + str(self.persistent_data['bluetooth_device_mac'])
-                            
-                            
-                            
-                    elif sys.platform != 'darwin':
-                            for option in self.audio_controls:
-                                if self.DEBUG:
-                                    print( str(option['human_device_name']) + " =?= " + str(self.persistent_data['audio_output']) )
-                                if option['human_device_name'] == str(self.persistent_data['audio_output']):
-                                    environment["ALSA_CARD"] = str(option['simple_card_name'])
-                                    
-                                    
-                    # TODO: provide the option to fall back to normal speakers if the bluetooth speaker is disconnected?
-                                    
-                except Exception as ex:
-                    print("Error in set_radio_state while doing audio output (bluetooth speaker) checking: " + str(ex))
-                
-                
-                #kill_process('ffplay')
-                
-				
-                logarithmic_volume = -6000 # start at 0
-				
-                # set the volume by starting omx-player with that volume
-                # Somehow this volume doesn't match the volume from the set_audio_volume method, so it's a fall-back option.
-                if also_call_volume == False and self.respeaker_detected == False:
-                    
-                    if self.persistent_data['volume'] > 0:
-                    	#print("volume is now 1")
-                        pre_volume = int(self.persistent_data['volume']) / 100
-    					#print("pre_volume: " + str(pre_volume))
-    					# OMXPlayer volume is between -6000 and 0 (logarithmic)
-                        logarithmic_volume = 2000 * math.log(pre_volume)
-    					#print("logarithmic_volume: " + str(logarithmic_volume))
-                
-               
-                
-                
-                if self.respeaker_detected:
-                    
-                    environment = os.environ.copy()
-                    
-                    if bt_connected:
-                    
-                        environment["SDL_AUDIODRIVER"] = "alsa"
-                        #environment["AUDIODEV"] = "bluealsa:" + str(self.persistent_data['bluetooth_device_mac'])
-                        environment["AUDIODEV"] = "bluealsa:00:00:00:00:00:00"
-                    
-                        #my_command = "SDL_AUDIODRIVER=alsa UDIODEV=bluealsa:DEV=" + str(self.persistent_data['bluetooth_device_mac']) + " ffplay -nodisp -vn -infbuf -autoexit -volume " + str(self.persistent_data['volume']) + " " + str(self.persistent_data['current_stream_url'])
-                        my_command = "ffplay -nodisp -vn -infbuf -autoexit -volume " + str(self.persistent_data['volume']) + " " + str(self.persistent_data['current_stream_url'])
-                    
-                    
-                        if self.DEBUG:
-                            print("Internet radio addon will call this subprocess command: " + str(my_command))
-                            print("starting ffplay...")
-                        self.player = subprocess.Popen(my_command, 
-                                        env=environment,
-                                        shell=True,
-                                        stdin=subprocess.PIPE,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE)
-                
-                
-                    else:
-                        #my_command = "ffplay -nodisp -vn -infbuf -autoexit" + str(self.persistent_data['current_stream_url']) + " -volume " + str(self.persistent_data['volume'])
-                        my_command = ("ffplay", "-nodisp", "-vn", "-infbuf","-autoexit","-volume",str(self.persistent_data['volume']), str(self.persistent_data['current_stream_url']) )
-
-                        if self.DEBUG:
-                            print("Internet radio addon will call this subprocess command: " + str(my_command))
-                            print("starting ffplay...")
-                        self.player = subprocess.Popen(my_command, 
-                                        env=environment,
-                                        stdin=subprocess.PIPE,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE)
-                    
-                else:
-                    
-                    #if self.persistent_data['audio_output'] == 'Built-in headphone jack':
-                    #    omx_output = "local"
-                    #else:
-                    #    omx_output = "hdmi"
-                    
-                    omx_output = "alsa:sysdefault"
-                    
-                    if self.output_to_both:
-                        omx_output = "both"
-                    
-                    if bt_connected:
-                        omx_output = "alsa:bluealsa"
-				
-                    omx_command = "omxplayer -o " + str(omx_output) + " --vol " + str(logarithmic_volume) + " -z --audio_queue 10 --audio_fifo 10 --threshold 5 " + str(self.persistent_data['current_stream_url'])
-                    if self.DEBUG:
-                        print("\nOMX Player command: " + str(omx_command))
-                    #omxplayer -o alsa:bluealsa
-                
-                    command_array = omx_command.split(' ')
-                
-                    #environment = os.environ.copy()
-                    #environment["DISPLAY"] = ":0"
-                
-                    self.player = subprocess.Popen(command_array, 
-                                        #env=environment,
-                                        stdin=subprocess.PIPE,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE,
-                                        bufsize=0,
-                                        close_fds=True)
-                
-                if self.DEBUG:
-                    print("self.player created")
-                
-                self.persistent_data['playing'] = True
-                self.set_status_on_thing("Playing")
-                
-                if also_call_volume and self.respeaker_detected == False:
-                    if self.DEBUG:
-                        print("set_radio_state: alse setting volume")
-                    time.sleep(1)
-                    self.set_audio_volume(self.persistent_data['volume'])
-                
-     
-            #
-            #  turn off
-            #
-            else:
-                if self.DEBUG:
-                    print("turning off radio")
-                self.persistent_data['playing'] = False
-                self.set_status_on_thing("Stopped")
-                self.get_artist() # sets now_playing data to none on the device and UI
-                if self.player != None:
-                    if self.DEBUG:
-                        print("player object existed")
-                    if self.respeaker_detected == False:
-                        self.player.stdin.write(b'q')
-                        self.player.stdin.flush()
-                    self.player.terminate()
-                    self.player.kill()
-                    #os.system('pkill ffplay')
-                    if self.respeaker_detected:
-                        os.system('pkill ffplay')
-                    else:
-                        os.system('pkill omxplayer')
-                    self.player = None
-                
-                else:
-                    if self.DEBUG:
-                        print("Could not stop the player because it wasn't running.")
-                
-            # update the UI
-            self.set_state_on_thing(bool(power))
-
-        except Exception as ex:
-            print("Error setting radio state: " + str(ex))
-
-
-
-    def set_audio_volume(self,volume):
-        if self.DEBUG:
-            print("Setting audio output volume to " + str(volume))
-            print("self.player: " + str(self.player))
+        timeout -- Timeout in seconds at which to quit pairing
+        """
+        print("in start_pairing. Timeout: " + str(timeout))
         
-        set_volume_via_radio_state = False    
-        if self.respeaker_detected:
-            set_volume_via_radio_state = True # changes volume by completely restarting the player and giving it the new initial volume value
-            
-        if int(volume) != self.persistent_data['volume']:
-            self.persistent_data['volume'] = int(volume)
-            self.save_persistent_data()
-            if self.DEBUG:
-                print("Volume changed")
-        else:
-            if self.DEBUG:
-                print("Volume did not change")
-                
-        try:
-            if self.player != None and self.respeaker_detected == False:
-                
-                if self.DEBUG:
-                    print("Trying dbus volume")
-
-                omxplayerdbus_user = run_command('cat /tmp/omxplayerdbus.${USER:-root}')
-                if self.DEBUG:
-                    print("DBUS_SESSION_BUS_ADDRESS: " + str(omxplayerdbus_user))
-                environment = os.environ.copy()
-                if omxplayerdbus_user != None:
-                    if self.DEBUG:
-                        print("trying dbus-send")
-                    environment["DBUS_SESSION_BUS_ADDRESS"] = str(omxplayerdbus_user).strip()
-                    environment["DISPLAY"] = ":0"
-                
-                    if self.DEBUG:
-                        print("environment: " + str(environment))
-                    
-                    dbus_volume = volume / 100
-                    if self.DEBUG:
-                        print("dbus_volume: " + str(dbus_volume))
-                    
-                    dbus_command = 'dbus-send --print-reply --session --reply-timeout=500 --dest=org.mpris.MediaPlayer2.omxplayer /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Set string:"org.mpris.MediaPlayer2.Player" string:"Volume" double:' + str(dbus_volume)
-                    #export DBUS_SESSION_BUS_ADDRESS=$(cat /tmp/omxplayerdbus.${USER:-root})
-                    dbus_process = subprocess.Popen(dbus_command, 
-                                    env=environment,
-                                    shell=True,				# Streaming to bluetooth seems to only work if shell is true. The position of the volume string also seemed to matter
-                                    stdin=subprocess.PIPE,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
-                                    close_fds=True)
-                
-                    stdout,stderr = dbus_process.communicate()
-                    if len(stderr) > 4:
-                        set_volume_via_radio_state = True
-                    else:
-                        set_volume_via_radio_state = False
-                    
-                    if self.DEBUG:
-                        print("dbus stdout: " + str(stdout))
-                        print("dbus stderr: " + str(stderr))
-                
-                    #dbus_result = dbus_process.stdout.read()
-                    #dbus_process.stdout.close()
-                
-                    
-                    
-        except Exception as ex:
-            print("Error trying to set volume via dbus: " + str(ex))
-            set_volume_via_radio_state= True
-            
-        self.set_volume_on_thing(volume)
-        #if self.player == None:
         
-        if set_volume_via_radio_state:
-            if self.DEBUG:
-                print("WARNING: setting radio volume by restarting audio player instead")
-            self.set_radio_state(self.persistent_data['power'],False)
-
-        return
-
-
-
-    
-
-
-
-#
-# SUPPORT METHODS
-#
-
-    def set_status_on_thing(self, status_string):
-        if self.DEBUG:
-            print("new status on thing: " + str(status_string))
-        try:
-            if self.devices['internet-radio'] != None:
-                #self.devices['internet-radio'].properties['status'].set_cached_value_and_notify( str(status_string) )
-                self.devices['internet-radio'].properties['status'].update( str(status_string) )
-        except:
-            print("Error setting status on internet radio device")
-
-
-    def set_song_on_thing(self, song_string):
-        #if self.DEBUG:
-        #    print("new song on thing: " + str(song_string))
-        try:
-            if self.devices['internet-radio'] != None:
-                #self.devices['internet-radio'].properties['status'].set_cached_value_and_notify( str(status_string) )
-                self.devices['internet-radio'].properties['song'].update( str(song_string) )
-        except:
-            print("Error setting song on internet radio device")
-
-
-    def set_artist_on_thing(self, artist_string):
-        #if self.DEBUG:
-        #    print("new artist on thing: " + str(artist_string))
-        try:
-            if self.devices['internet-radio'] != None:
-                #self.devices['internet-radio'].properties['status'].set_cached_value_and_notify( str(status_string) )
-                self.devices['internet-radio'].properties['artist'].update( str(artist_string) )
-        except:
-            print("Error setting artist on internet radio device")
-
-
-
-    def set_state_on_thing(self, power):
-        if self.DEBUG:
-            print("new state on thing: " + str(power))
-        try:
-            if self.devices['internet-radio'] != None:
-                self.devices['internet-radio'].properties['power'].update( bool(power) )
-        except Exception as ex:
-            print("Error setting power state on internet radio device:" + str(ex))
-
-
-
-    def set_station_on_thing(self, station):
-        if self.DEBUG:
-            print("new station on thing: " + str(station))
-        try:
-            if self.devices['internet-radio'] != None:
-                self.devices['internet-radio'].properties['station'].update( str(station) )
-        except Exception as ex:
-            print("Error setting station on internet radio device:" + str(ex))
-
-
-
-    def set_volume_on_thing(self, volume):
-        if self.DEBUG:
-            print("new volume on thing: " + str(volume))
-        try:
-            if self.devices['internet-radio'] != None:
-                self.devices['internet-radio'].properties['volume'].update( int(volume) )
-            else:
-                print("Error: could not set volume on internet radio thing, the thing did not exist yet")
-        except Exception as ex:
-            print("Error setting volume of internet radio device:" + str(ex))
-
-
-
-    # Only called on non-darwin devices
-    def set_audio_output(self, selection):
-        if self.DEBUG:
-            print("Setting audio output selection to: " + str(selection))
-            
-            
-        if str(selection) == 'Bluetooth speaker':
-            self.persistent_data['audio_output'] = str(selection)
-            self.save_persistent_data()
-            if self.devices['internet-radio'] != None:
-                self.devices['internet-radio'].properties['audio output'].update( str(selection) )
-            if self.persistent_data['power']:
-                if self.DEBUG:
-                    print("restarting radio with new audio output")
-                self.set_radio_state(True)
-            
-        else:
-            # Get the latest audio controls
-            self.audio_controls = get_audio_controls()
-            if self.DEBUG:
-                print(self.audio_controls)
+    def cancel_pairing(self):
+        """Cancel the pairing process."""
+        # This happens when the user cancels the pairing process, or if it times out.
+        print("in cancel_pairing")
         
-            try:        
-                for option in self.audio_controls:
-                    if str(option['human_device_name']) == str(selection):
-                        if self.DEBUG:
-                            print("CHANGING INTERNET RADIO AUDIO OUTPUT")
-                        # Set selection in persistence data
-                        self.persistent_data['audio_output'] = str(selection)
-                        if self.DEBUG:
-                            print("persistent_data is now: " + str(self.persistent_data))
-                        self.save_persistent_data()
-                    
-                        if self.DEBUG:
-                            print("new selection on thing: " + str(selection))
-                        try:
-                            if self.DEBUG:
-                                print("self.devices = " + str(self.devices))
-                            if self.devices['internet-radio'] != None:
-                                self.devices['internet-radio'].properties['audio output'].update( str(selection) )
-                        except Exception as ex:
-                            print("Error setting new audio output selection:" + str(ex))
-        
-                        if self.persistent_data['power']:
-                            if self.DEBUG:
-                                print("restarting radio with new audio output")
-                            self.set_radio_state(True)
-                        break
-            
-            except Exception as ex:
-                print("Error in set_audio_output: " + str(ex))
-
-
-
-
-    def scrape_url_from_playlist(self, url):
-        response = requests.get(url)
-        data = response.text
-        url = None
-        #if self.DEBUG:
-        #    print("playlist data: " + str(data))
-        for line in data.splitlines():
-            if self.DEBUG:
-                print(str(line))
-
-            if 'http' in line:
-                url_part = line.split("http",1)[1]
-                if url_part != None:
-                    url = "http" + str(url_part)
-                    if self.DEBUG:
-                        print("Extracted URL: " + str(url))
-                    break
-                    
-        if url == None:
-            set_status_on_thing("Error with station")
-            
-        return url
-
-
 
     def unload(self):
         if self.DEBUG:
-            print("Shutting down Internet Radio.")
-        self.set_status_on_thing("Bye")
-        #self.devices['internet-radio'].connected_notify(False)
+            print("Bye!")
+        try:
+            self.devices['example-addon1'].properties['status'].update( "Bye")
+        except Exception as ex:
+            print("Error setting status on thing: " + str(ex))
+        
+        # Tell the controller to show the device as disconnected. This isn't really necessary, as the controller will do this automatically.
+        self.devices['example-addon1-thing'].connected_notify(False)
+        
+        # A final chance to save the data.
         self.save_persistent_data()
-        self.set_radio_state(False)
-        self.running = False
-        #if self.player != None:
-        #    self.player.stdin.write(b'q')
-        #os.system('pkill omxplayer')
 
 
     def remove_thing(self, device_id):
+        # This is called if the user deletes a thing
+        print("user deleted the thing")
         try:
-            self.set_radio_state(False)
+            # We don't have to delete the thing in the addon, but we can.
             obj = self.get_device(device_id)
-            self.handle_device_removed(obj)                     # Remove from device dictionary
+            self.handle_device_removed(obj) # Remove from device dictionary
             if self.DEBUG:
-                print("User removed Internet Radio device")
+                print("User removed thing")
         except:
-            print("Could not remove things from devices")
+            print("Could not remove thing from devices")
 
 
 
+
+    #
+    # This saves the persistent_data dictionary to a file
+    #
+    
     def save_persistent_data(self):
         if self.DEBUG:
             print("Saving to persistence data store")
@@ -925,7 +367,8 @@ class AddonAdapter(Adapter):
         except Exception as ex:
             if self.DEBUG:
                 print("Error: could not store data in persistent store: " + str(ex) )
-            return False
+        
+        return False
 
 
 
@@ -937,7 +380,16 @@ class AddonAdapter(Adapter):
 # DEVICE
 #
 
-class InternetRadioDevice(Device):
+# This addon is very basic, in that it only creates a single thing.
+# The device can be seen as a "child" of the adapter
+
+# Adapter
+# - Device  <- you are here
+# - - Property  
+
+
+
+class ExampleAddon1Device(Device):
     """Internet Radio device type."""
 
     def __init__(self, adapter, radio_station_names_list, audio_output_list):
@@ -946,52 +398,59 @@ class InternetRadioDevice(Device):
         adapter -- the Adapter managing this device
         """
 
-        Device.__init__(self, adapter, 'internet-radio')
+        Device.__init__(self, adapter, 'example-addon1')
 
-        self._id = 'internet-radio'
-        self.id = 'internet-radio'
+        self._id = 'example-addon1-thing' # TODO: probably only need the first of these
+        self.id = 'example-addon1-thing'
         self.adapter = adapter
         self.DEBUG = adapter.DEBUG
 
-        self.name = 'Radio'
-        self.title = 'Radio'
-        self.description = 'Listen to internet radio stations'
-        self._type = ['MultiLevelSwitch']
-        #self.connected = False
-
-        self.radio_station_names_list = radio_station_names_list
+        self.name = 'thing1' # TODO: is this still used? hasn't this been replaced by title?
+        self.title = 'Example addon 1 thing'
+        self.description = 'Write a description here'
+        
+        # We give this device a "capability". This will cause it to have an icon that indicates what it can do. 
+        # Capabilities are always a combination of giving a this a capability type, and giving at least one of its properties a capability type.
+        # For example, here the device is a "multi level switch", which means it should have a boolean toggle property as well as a numeric value property
+        # There are a lot of capabilities, read about them here: https://webthings.io/schemas/
+        
+        self._type = ['MultiLevelSwitch'] # a combination of a toggle switch and a numeric value
 
         try:
             
-            # this will also call handle_device_added
-            self.update_stations_property(False)
+            # Let's add four properties:
             
-            self.properties["power"] = InternetRadioProperty(
+            # This create a toggle switch property
+            self.properties["state"] = ExampleAddon1Property(
                             self,
-                            "power",
+                            "state",
                             {
-                                '@type': 'OnOffProperty',
-                                'title': "State",
+                                '@type': 'OnOffProperty', # by giving the property this "capability", it will create a special icon indicating what it can do.
+                                'title': "State example",
                                 'readOnly': False,
                                 'type': 'boolean'
                             },
-                            self.adapter.persistent_data['power'])
+                            self.adapter.persistent_data['state']) # we give the new property the value that was remembered in the persistent data store
                             
-            self.properties["volume"] = InternetRadioProperty(
+                            
+            # Creates a percentage slider
+            self.properties["slider"] = ExampleAddon1Property( # (here "slider" is just a random name)
                             self,
-                            "volume",
+                            "slider",
                             {
-                                '@type': 'LevelProperty',
-                                'title': "Volume",
+                                '@type': 'LevelProperty', # by giving the property this "capability", it will create a special icon indicating what it can do.
+                                'title': "Slider example",
                                 'type': 'integer',
                                 'readOnly': False,
                                 'minimum': 0,
                                 'maximum': 100,
                                 'unit': 'percent'
                             },
-                            self.adapter.persistent_data['volume'])
-                            
-            self.properties["status"] = InternetRadioProperty(
+                            self.adapter.persistent_data['slider'])
+                        
+                        
+            # This property shows a simple string in the interface. The user cannot change this string in the UI, it's "read-only" 
+            self.properties["status"] = ExampleAddon1Property(
                             self,
                             "status",
                             {
@@ -999,93 +458,47 @@ class InternetRadioDevice(Device):
                                 'type': 'string',
                                 'readOnly': True
                             },
-                            "Hello")
+                            "Hello world")
 
-            self.properties["artist"] = InternetRadioProperty(
+
+            self.properties["dropdown"] = ExampleAddon1Property(
                             self,
-                            "artist",
+                            "dropdown",
                             {
-                                'title': "Artist",
+                                'title': "Dropdown example",
                                 'type': 'string',
-                                'readOnly': True
+                                'readOnly': False,
+                                'enum': ['Auto', 'Option 1', 'Option 2'],
                             },
-                            None)
+                            self.adapter.persistent_data['dropdown']) 
 
-            self.properties["song"] = InternetRadioProperty(
-                            self,
-                            "song",
-                            {
-                                'title': "Song",
-                                'type': 'string',
-                                'readOnly': True
-                            },
-                            None)
-
-
-
-            if sys.platform != 'darwin': #darwin = Mac OS
-                if self.DEBUG:
-                    print("adding audio output property with list: " + str(audio_output_list))
-                self.properties["audio output"] = InternetRadioProperty(
-                                self,
-                                "audio output",
-                                {
-                                    'title': "Audio output",
-                                    'type': 'string',
-                                    'readOnly': False,
-                                    'enum': audio_output_list,
-                                },
-                                self.adapter.persistent_data['audio_output'])
 
 
         except Exception as ex:
             if self.DEBUG:
-                print("error adding properties: " + str(ex))
+                print("error adding properties to thing: " + str(ex))
 
         if self.DEBUG:
-            print("Internet Radio thing has been created.")
-
-
-    # Creates these options "on the fly", as radio stations get added and removed.
-    def update_stations_property(self, call_handle_device_added=True):
-        #print("in update_stations_property")
-        # Create list of radio station names for the radio thing.
-        radio_stations_names = []
-        for station in self.adapter.persistent_data['stations']:
-            if self.DEBUG:
-                print("Adding station: " + str(station))
-                #print("adding station: " + str(station['name']))
-            radio_stations_names.append(str(station['name']))
-        
-        self.adapter.radio_station_names_list = radio_stations_names
-        #print("remaking property? List: " + str(radio_stations_names))
-        self.properties["station"] = InternetRadioProperty(
-                        self,
-                        "station",
-                        {
-                            'title': "Station",
-                            'type': 'string',
-                            'enum': radio_stations_names,
-                        },
-                        self.adapter.persistent_data['station'])
-
-        self.adapter.handle_device_added(self);
-        self.notify_property_changed(self.properties["station"])
-
+            print("thing has been created.")
 
 
 #
 # PROPERTY
 #
+# The property can be seen as a "child" of the device
 
-class InternetRadioProperty(Property):
+# Adapter
+# - Device
+# - - Property  <- you are here
+
+
+class ExampleAddon1Property(Property):
 
     def __init__(self, device, name, description, value):
-        # This creates the initial property, and saves information aobut. Most importantly, its value.
-        # calling "set_cached_value" communicates the value to the controller, and must be called whenever you want to propertty value to be updated in the interface
+        # This creates the initial property
         
         # properties have:
-        # - name - a unique id
+        # - a unique id
         # - a human-readable title
         # value. The current value of this property
         
@@ -1096,16 +509,18 @@ class InternetRadioProperty(Property):
         # you could go up a few levels to get values from the adapter:
         # print("debugging? " + str( self.device.adapter.DEBUG ))
         
+        # TODO: set the ID properly?
         
-        self.name = name
-        self.title = name
-        self.description = description # dictionary
-        self.value = value
+        self.name = name # TODO: is name still used?
+        self.title = name # TODO: the title isn't really being set
+        self.description = description # a dictionary that holds the details about the property type
+        self.value = value # the value of the property
         
-        # Tell the controller that this property has a (new) value
+        # Notifies the controller that this property has a (initial) value
         self.set_cached_value(value)
         self.device.notify_property_changed(self)
         
+        print("property: initiated: " + str(self.title))
 
 
     def set_value(self, value):
@@ -1113,26 +528,38 @@ class InternetRadioProperty(Property):
         print("property: set_value called for " + str(self.title))
         print("property: set value to: " + str(value))
         
-        # First, let's set the new value. The controller is waiting 60 seconds for a response from the addon that the new value is indeed set. If "notify_property_changed" isn't used before then, it wil revert the value in the interface back to what it was.
-        self.update(value)
+        try:
+            
+            # Depending on which property this is, you could have it do something. That method could be anywhere, but in general it's clean to keep the methods at a higher level (the adapter)
+            # This means that in this example the route the data takes is as follows: 
+            # 1. User changes the property in the interface
+            # 2. Controller calls set_value on property
+            # 3. In this example the property routes the intended value to a method on the adapter (e.g. set_state). See below.
+            # 4. The method on the adapter then does whatever it needs to do, and finally tells the property's update method so that the new value is updated, and the controller is sent a return message that the value has indeed been changed.
+            
+            #  If you wanted to you could simplify this by calling update directly. E.g.:
+            # self.update(value)
+            
+            if self.id == 'state':
+                self.device.adapter.set_state(bool(value))
         
-        # Depending on which property this is, you could have it do something. That method could be anywhere, but in general it's clean to keep the methods at a higher level (the adapter)
+            elif self.id == 'slider':
+                self.device.adapter.set_slider(int(value))
         
-        if self.id == 'state':
-            self.device.adapter.set_state(bool(value))
+            elif self.id == 'dropdown':
+                self.device.adapter.set_dropdown(str(value))
         
-        if self.id == 'slider':
-            self.device.adapter.set_slider(int(value))
+            # The controller is waiting 60 seconds for a response from the addon that the new value is indeed set. If "notify_property_changed" isn't used before then, it wil revert the value in the interface back to what it was.
+            
         
         except Exception as ex:
-            print("set_value error: " + str(ex))
-
+            print("property: set_value error: " + str(ex))
 
 
     def update(self, value):
-        # This is a quick way to set the value of this property. It checks that the value is indeed new, and then notifies the controller.
+        # This is a quick way to set the value of this property. It checks that the value is indeed new, and then notifies the controller that the value was changed.
         
-        print("property -> update. value: " + str(value))
+        print("property: update. value: " + str(value))
          
         if value != self.value:
             self.value = value
@@ -1144,11 +571,133 @@ class InternetRadioProperty(Property):
 
 
 
+#
+#  API HANDLER
+#
+
+# In this example the api-handler is created by the adapter. This is arbitary, you could have the adapter be the child of the api-handler if you prefered.
+
+# Adapter  
+# - Device  
+# - - Property  
+# - Api handler  <- you are here
 
 
 
+class ExampleAddon1APIHandler(APIHandler):
+    """API handler."""
+
+    def __init__(self, adapter, verbose=False):
+        """Initialize the object."""
+        print("INSIDE API HANDLER INIT")
+        
+        self.adapter = adapter
+        self.DEBUG = self.adapter.DEBUG
 
 
+        # Intiate extension addon API handler
+        try:
+
+            APIHandler.__init__(self, self.adapter.addon_name) # gives the api handler the same id as the adapter
+            self.manager_proxy.add_api_handler(self) # tell the controller that the api handler now exists
+            
+        except Exception as e:
+            print("Error: failed to init API handler: " + str(e))
+        
+#
+#  HANDLE REQUEST
+#
+
+    def handle_request(self, request):
+        """
+        Handle a new API request for this handler.
+
+        request -- APIRequest object
+        """
+        
+        
+        
+        try:
+        
+            if request.method != 'POST':
+                return APIResponse(status=404) # we only accept POST requests
+            
+            if request.path == '/ajax': # you could have all kinds of paths. In this example we only use this one, and use the 'action' variable to denote what we want to api handler to do
+
+                try:
+                    
+                    
+                    action = str(request.body['action']) 
+                    
+                    if self.DEBUG:
+                        print("API handler is being called. Action: " + str(action))
+                        print("request.body: " + str(request.body))
+                    
+                    # INIT
+                    if action == 'init':
+                        if self.DEBUG:
+                            print("in init")
+                        
+                        return APIResponse(
+                          status=200,
+                          content_type='application/json',
+                          content=json.dumps({'thing_state' : self.adapter.persistent_data['state'], 'slider_value':self.adapter.persistent_data['slider'], 'debug': self.adapter.DEBUG, 'items_list':self.adapter.items_list}),
+                        )
+                        
+                    
+                    # DELETE
+                    elif action == 'delete':
+                        if self.DEBUG:
+                            print("in delete")
+                        name = str(request.body['name'])
+                        
+                        try:
+                            # you could have some delete functionality here. In this case it does nothing.
+                            state = True
+                            
+                        except Exception as ex:
+                            if self.DEBUG:
+                                print("Error deleting: " + str(ex))
+                        
+                        
+                        return APIResponse(
+                          status=200,
+                          content_type='application/json',
+                          content=json.dumps({'state' : state}),
+                        )
+                    
+                    
+                    else:
+                        print("Error, that action is not possible")
+                        return APIResponse(
+                            status=404
+                        )
+                        
+                except Exception as ex:
+                    if self.DEBUG:
+                        print("Ajax error: " + str(ex))
+                    return APIResponse(
+                        status=500,
+                        content_type='application/json',
+                        content=json.dumps({"error":"Error in API handler"}),
+                    )
+                    
+            else:
+                if self.DEBUG:
+                    print("invalid path: " + str(request.path))
+                return APIResponse(status=404)
+                
+        except Exception as e:
+            if self.DEBUG:
+                print("Failed to handle UX extension API request: " + str(e))
+            return APIResponse(
+                status=500,
+                content_type='application/json',
+                content=json.dumps({"error":"General API error"}),
+            )
+        
+
+        # That's a lot of "apiResponse", but we need to make sure that there is always a response sent to the UI
 
 
 
