@@ -1,0 +1,110 @@
+<!-- 
+The controller creates a view elemenf for the addon. This addon's Javascript then loads this chunk of HTML into that view.
+
+It's recommended to not manipulate the view container. That's why this HTML starts with making its own content container.
+
+- extension-example-addon1-content-container is the main container. It's use is mainly to allow everything inside to scroll (through overflow: auto in the CSS)
+- - extension-example-addon1-content holds the content for the addon. It starts with the title, and is then followed by some tabs.
+
+The page has a imaginary border of 10 rem, which is where things like the menu button reside.(Those buttons are themselves 2rem from the side, and 8 rem wide and tall).
+
+Addons may add buttons to the top-right and bottom-right corner. Buttons to add or refresh things are prefered in the bottom-right. Settings or tutorial buttons are prefered in the rop right.
+
+-->
+
+<div id="extension-example-addon1-content-container">
+  
+    <div id="extension-example-addon1-content">
+        <h3 id="extension-example-addon1-title">Example addon 1</h3> <!-- The icon is loaded into this title as a background, through CSS -->
+
+        <div id="extension-example-addon1-tabs-container"> <!-- your addon might itself have multiple tabs/pages. In this example toggling between the two tabs is based on a class class on the content container div -->
+            
+            
+            <div id="extension-example-addon1-main-page">
+                <h2>Main page</h2>
+                
+                <div id="extension-example-addon1-loading">
+                    <div class="extension-example-addon1-spinner">
+                        <div></div><div></div><div></div><div></div>
+                    </div>
+                </div>
+                
+                <div id="extension-example-addon1-main-items-list">(Items list will be loaded here)</div>
+                
+                <!-- By having this button inside of this tab, it will be automatically hidden when it's pressed-->
+                <button id="extension-example-addon1-show-second-page-button" class="icon-button"></button>
+        
+            </div>
+            
+            
+            
+            
+            <div id="extension-example-addon1-second-page" style="display:none">
+                
+                <div class="extension-example-addon1-centered-page"> <!-- This centered page div sets a maximum with for the content and centers it. -->
+                
+        		<h2>Second page</h2>
+                <p>Do something else here. Or don't use a second page at all.</p>
+                
+                <div class="extension-example-addon1-area">
+                    <p>This is an "area", which means it gets a slightly darker rounded background. In general padding is 2rem.</p>
+                    <p>This is useful as a way to indicate input forms, for example.</p>
+                </div>
+        
+                <!-- By having this button inside of this tab, it will be automatically hidden when it's pressed-->
+                <button id="extension-example-addon1-back-button" class="icon-button" aria-label="Back"></button>
+        
+            </div>
+            
+		
+        </div>
+        
+        
+        <!-- This is the item that is cloned to create a list. The Zigbee2MQTT addon does this, for example. -->
+		<div id="extension-example-addon1-original-item" class="extension-example-addon1-item">
+
+            <div class="extension-example-addon1-item-left">
+                <div class="extension-example-addon1-play-icon"></div>
+            </div>
+            
+			<div class="extension-example-addon1-item-setter">
+				
+
+				<div class="extension-example-addon1-item-title">Item name</div>
+                
+                <div class="extension-example-addon1-item-tags"></div>
+                
+				<div class="extension-example-addon1-item-line2">
+                    <div class="extension-example-addon1-item-url"></div>
+				</div>
+
+			</div>
+
+			<div class="extension-example-addon1-item-menu">
+				<div class="extension-example-addon1-item-right">
+					<div class="extension-example-addon1-item-delete-button">&nbsp;</div>
+				</div>
+			</div>
+
+		</div>
+        
+        <!-- Give your addon's content to extra margin at the bottom - prefereable 50vh (50% height of the viewport). This is because touch screen users will need space at the bottom to show the virtual keyboard, and be able to scroll your content above it. -->
+        <br/>
+        <br/>
+
+        <div id="extension-example-addon1-debug-warning" style="display:none">
+            <h2>Debugging is enabled</h2>
+            <p>This addon is currently set to save detailed information about its operation in the internal logs. This may impact your privacy, as this also means that insights into your behaviour might be stored in those logs.</p>
+            <p>You can disable debugging mode at the settings page for this addon.</p>
+        </div>
+
+        <br/>
+        
+    </div>
+    
+</div>
+
+
+
+
+
