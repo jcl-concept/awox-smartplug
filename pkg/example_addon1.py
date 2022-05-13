@@ -184,7 +184,6 @@ class ExampleAddon1Adapter(Adapter):
         # The addon is now ready
         self.ready = True 
 
-       
 
 
 
@@ -315,6 +314,7 @@ class ExampleAddon1Adapter(Adapter):
     def unload(self):
         if self.DEBUG:
             print("Bye!")
+            
         try:
             self.devices['example-addon1-thing'].properties['status'].update( "Bye")
         except Exception as ex:
