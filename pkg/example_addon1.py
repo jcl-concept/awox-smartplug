@@ -75,6 +75,8 @@ class ExampleAddon1Adapter(Adapter):
 
         verbose -- whether or not to enable verbose logging
         """
+        
+        print("Starting adapter init")
 
         self.ready = False # set this to True once the init process is complete.
         self.addon_name = 'example-addon1'
@@ -189,6 +191,7 @@ class ExampleAddon1Adapter(Adapter):
 
     def add_from_config(self):
         """ This retrieves the addon settings from the controller """
+        print("in add_from_config")
         try:
             database = Database(self.addon_name)
             if not database.open():
@@ -205,7 +208,7 @@ class ExampleAddon1Adapter(Adapter):
             
         try:
             if not config:
-                self.close_proxy()
+                print("Warning, no config.")
                 return
 
             # Let's start by setting the user's preference about debugging, so we can use that preference to output extra debugging information
