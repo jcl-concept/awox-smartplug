@@ -44,10 +44,10 @@
           "description": "Write a description here for a float."
 		},
         "A slider setting": {
-          "type": "number",
           "description": "Write a description here for a number. This one will be displayed as a slider, and is useful if you want to limit the range that users can enter. The only difference is that a maximum and minimum is provided",
 		  "minimum": -10,
 		  "maximum": 10,
+		  "type": "number"
 		},
         "A string setting": {
           "type": "string",
@@ -60,7 +60,7 @@
 			"Auto",
             "Option 1",
 			"Option 2"
-          ],
+          ]
 		},
         "Debugging": {
           "type": "boolean",
@@ -71,7 +71,7 @@
       "type": "object"
     }
   },
-  "short_name": "Example1",
+  "short_name": "example1",
   "version": "0.0.1",
   "web_accessible_resources": [
     "css/*.css",

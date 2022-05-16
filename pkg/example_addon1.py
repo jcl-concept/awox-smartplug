@@ -86,7 +86,7 @@ class ExampleAddon1Adapter(Adapter):
         Adapter.__init__(self, self.addon_name, self.addon_name, verbose=verbose)
 
         # set up some variables
-        self.DEBUG = False
+        self.DEBUG = True
         
         # this is a completely random set of items. It is sent to the user interface through the API handler, which till turn it into a list
         self.items_list = [
@@ -109,7 +109,13 @@ class ExampleAddon1Adapter(Adapter):
         
         # Create some path strings. These point to locations on the drive.
         self.addon_path = os.path.join(self.user_profile['addonsDir'], self.addon_name) # addonsDir points to the directory that holds all the addons (/home/pi/.webthings/addons).
-        self.persistence_file_path = os.path.join(self.user_profile['dataDir'], self.addon_name, 'persistence.json') # dataDir points to the directory where the addons are allowed to store their data (/home/pi/.webthings/data)
+        self.data_path = os.path.join(self.user_profile['dataDir'], self.addon_name)
+        self.persistence_file_path = os.path.join(self.data_path, 'persistence.json') # dataDir points to the directory where the addons are allowed to store their data (/home/pi/.webthings/data)
+        
+        # Create the data directory if it doesn't exist yet
+        if not os.path.isdir(self.data_path):
+            print("making missing data directory")
+            os.mkdir(self.data_path)
         
         if sys.platform == 'darwin':
             print("running on a Mac")
@@ -165,13 +171,13 @@ class ExampleAddon1Adapter(Adapter):
             # Create the device object
             example_addon1_device = ExampleAddon1Device(self)
             
-            # Tell the controller about the new device that was created. This will add the new device to self.devices
+            # Tell the controller about the new device that was created. This will add the new device to self.devices too
             self.handle_device_added(example_addon1_device)
             
             if self.DEBUG:
                 print("example_addon1_device created")
                 
-            # You can set the device to connected or disconnected. If it's in disconnected state the thing will be a bit more opaque.
+            # You can set the device to connected or disconnected. If it's in disconnected state the thing will visually be a bit more transparent.
             self.devices['example-addon1-thing'].connected = True
             self.devices['example-addon1-thing'].connected_notify(True)
 
@@ -244,55 +250,67 @@ class ExampleAddon1Adapter(Adapter):
     # It's nice to have a central location where a change in a property is managed.
 
     def set_state(self,state):
-        print("in set_state with state: " + str(state))
-        
-        # saves the new state in the persistent data file, so that the addon can restore the correct state if it restarts
-        self.persistent_data['state'] = state
-        self.save_persistent_data() 
-        
-        # A cool feature: you can create popups in the interface this way:
-        if state == True:
-            self.send_pairing_prompt("You switched on the thing") # please don't overdo it with the pairing prompts..
-        
-        # We tell the property to change its value. This is a very round-about way, and you could place all this logic inside the property instead. It's a matter of taste.
         try:
-            self.devices['example-addon1-thing'].properties['state'].update( state )
+            print("in set_state with state: " + str(state))
+        
+            # saves the new state in the persistent data file, so that the addon can restore the correct state if it restarts
+            self.persistent_data['state'] = state
+            self.save_persistent_data() 
+        
+            # A cool feature: you can create popups in the interface this way:
+            if state == True:
+                self.send_pairing_prompt("You switched on the thing") # please don't overdo it with the pairing prompts..
+        
+            # We tell the property to change its value. This is a very round-about way, and you could place all this logic inside the property instead. It's a matter of taste.
+            try:
+                self.devices['example-addon1-thing'].properties['state'].update( state )
+            except Exception as ex:
+                print("error setting state on thing: " + str(ex))
+        
         except Exception as ex:
-            print("error setting state on thing: " + str(ex))
+            print("error in set_state: " + str(ex))
+                
         
         
         
     def set_slider(self,value):
-        print("in set_slider with value: " + str(value))
-        
-        # saves the new state in the persistent data file, so that the addon can restore the correct state if it restarts
-        self.persistent_data['slider'] = value
-        self.save_persistent_data() 
-        
         try:
-            self.devices['example-addon1-thing'].properties['slider'].update( value )
+            print("in set_slider with value: " + str(value))
+        
+            # saves the new state in the persistent data file, so that the addon can restore the correct state if it restarts
+            self.persistent_data['slider'] = value
+            self.save_persistent_data() 
+        
+            try:
+                self.devices['example-addon1-thing'].properties['slider'].update( value )
+            except Exception as ex:
+                print("error setting slider value on thing: " + str(ex))
+            
         except Exception as ex:
-            print("error setting slider value on thing: " + str(ex))
+            print("error in set_slider: " + str(ex))
         
         
         
     def set_dropdown(self,value):
-        print("in set_dropdown with value: " + str(value))
+        try:
+            print("in set_dropdown with value: " + str(value))
         
-        # saves the new state in the persistent data file, so that the addon can restore the correct state if it restarts
-        self.persistent_data['dropdown'] = value
-        self.save_persistent_data() 
+            # saves the new state in the persistent data file, so that the addon can restore the correct state if it restarts
+            self.persistent_data['dropdown'] = value
+            self.save_persistent_data() 
         
-        # A cool feature: you can create popups in the interface this way:
-        if state == True:
+            # A cool feature: you can create popups in the interface this way:
             self.send_pairing_prompt("new dropdown value: " + str(value))
         
-        # We tell the property (and the controller) that the value is changed. This is a very round-about way, and you could place all this logic inside the property instead. It's a matter of taste.
-        try:
-            self.devices['example-addon1-thing'].properties['dropdown'].update( state )
-        except Exception as ex:
-            print("error setting dropdown value on thing: " + str(ex))
+            try:
+                self.devices['example-addon1-thing'].properties['dropdown'].update( value )
+            except Exception as ex:
+                print("error setting dropdown value on thing: " + str(ex))
         
+        except Exception as ex:
+            print("error in set_dropdown: " + str(ex))
+
+
 
 
     #
@@ -309,12 +327,13 @@ class ExampleAddon1Adapter(Adapter):
         
         
     def cancel_pairing(self):
-        """Cancel the pairing process."""
+        """ Happens when the user cancels the pairing process."""
         # This happens when the user cancels the pairing process, or if it times out.
         print("in cancel_pairing")
         
 
     def unload(self):
+        """ Happens when the user addon / system is shut down."""
         if self.DEBUG:
             print("Bye!")
             
@@ -331,7 +350,7 @@ class ExampleAddon1Adapter(Adapter):
 
 
     def remove_thing(self, device_id):
-        # This is called if the user deletes a thing
+        """ Happens when the user deletes the thing."""
         print("user deleted the thing")
         try:
             # We don't have to delete the thing in the addon, but we can.
@@ -433,7 +452,7 @@ class ExampleAddon1Device(Device):
                             self,
                             "state",
                             {
-                                '@type': 'OnOffProperty', # by giving the property this "capability", it will create a special icon indicating what it can do.
+                                '@type': 'OnOffProperty', # by giving the property this "capability", it will create a special icon indicating what it can do. Note that it's a string (while on the device it's an array).
                                 'title': "State example",
                                 'readOnly': False,
                                 'type': 'boolean'
@@ -493,7 +512,7 @@ class ExampleAddon1Device(Device):
 #
 # PROPERTY
 #
-# The property can be seen as a "child" of the device
+# The property can be seen as a "child" of a device
 
 # Adapter
 # - Device
@@ -518,9 +537,9 @@ class ExampleAddon1Property(Property):
         # print("debugging? " + str( self.device.adapter.DEBUG ))
         
         # TODO: set the ID properly?
-        
+        self.id = name
         self.name = name # TODO: is name still used?
-        self.title = name # TODO: the title isn't really being set
+        self.title = name # TODO: the title isn't really being set?
         self.description = description # a dictionary that holds the details about the property type
         self.value = value # the value of the property
         
@@ -528,7 +547,7 @@ class ExampleAddon1Property(Property):
         self.set_cached_value(value)
         self.device.notify_property_changed(self)
         
-        print("property: initiated: " + str(self.title))
+        print("property: initiated: " + str(self.title) + ", with value: " + str(value))
 
 
     def set_value(self, value):
@@ -557,7 +576,7 @@ class ExampleAddon1Property(Property):
             elif self.id == 'dropdown':
                 self.device.adapter.set_dropdown(str(value))
         
-            # The controller is waiting 60 seconds for a response from the addon that the new value is indeed set. If "notify_property_changed" isn't used before then, it wil revert the value in the interface back to what it was.
+            # The controller is waiting 60 seconds for a response from the addon that the new value is indeed set. If "notify_property_changed" isn't used before then, the controller will revert the value in the interface back to what it was.
             
         
         except Exception as ex:
@@ -607,7 +626,7 @@ class ExampleAddon1APIHandler(APIHandler):
         try:
             
             APIHandler.__init__(self, self.adapter.addon_name) # gives the api handler the same id as the adapter
-            self.adapter.manager_proxy.add_api_handler(self) # tell the controller that the api handler now exists
+            self.manager_proxy.add_api_handler(self) # tell the controller that the api handler now exists
             
         except Exception as e:
             print("Error: failed to init API handler: " + str(e))
