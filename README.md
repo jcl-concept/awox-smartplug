@@ -9,7 +9,7 @@ If everything seems valid it will start the addon by calling the command mention
 There are a number of functionalities your addon can provide.
 
 1.
-If you want your addon to bring new things to the controller, then you will want to create an "adapter". This is the default in this example - example-addon.py is an adapter.
+If you want your addon to bring new things to the controller, then you will want to create an "adapter". This is the default in this example - example-addon1.py is an adapter.
 Adapters create "things". Even if your addon won't connect to actual things, making things is still useful because it's the best way for making rules to control with your addon. Rules can manipulate things, and thus manipulate your addon.
 
 2.
@@ -34,7 +34,41 @@ This example is a hybrid of both an adapter and an API handler, with the adapter
 - .github/workflows is a file that can be used to automate creation of the addon by Github. If you upload your addon to github, whenever you create a new release, this will generate two new files: a .tar file and a checksum file. These are required to get your addon into the app store.
 - build.sh is a file that is part of the Github release process. It creates a virtual machine that emulates a Raspberry Pi, and calls package.sh. This is needed if you are using python libraries that need this emulation.
 
+
 ## Getting started
+
+First we'll have to get your Candle controller into a more developer friendly stance. Note that this will remove some security protections, so it's recommended to do development on a second device.
+
+We'll need to disable the read only mode of the main partition first.
+- Enable developer mode in the Candle store addon's settings.
+- Go into settings -> developer, and enable SSH
+- You can now log into the Candle controller with SSH: `ssh pi@candle.local`. The password is "smarthome".
+
+Do: `sudo raspi-config`
+...and in the performance menu disable the overlay, and when asked allow the system to reboot.
+
+Now you'll have to go into settings again, enable SSH again, and log into SSH again. Since we disabled read-only mode, SSH will stay enabled from now on.
+
+You can install Samba on Raspberry Pi to more easily work on the addon. That way the files of the controller will show up as a network drive. This command will do this automatically for you:
+`curl -sSL www.candlesmarthome.com/tools/samba.txt | sudo bash`
+
+(You can also use SFTP instead of Samba, in which case you technically don't need to disable read-only mode)
+
+Next we'll download the example addon onto the system. Using SSH, navigate to the addons directory:
+`cd /home/pi/.webthings/addons`
+
+Clone the example addon into the addons directory:
+`git clone https://github.com/createcandle/example-addon1.git`
+
+We need to quickly restart the controller to get it to detect the new addon. A fast way to do this without rebooting is:
+`sudo systemctl restart webthings-gateway.service`
+
+The addon should now appear in the installed addons list. Enable it.
+
+You should now see the example addon in the main menu.
+
+
+Now you can start actual development.
 
 After taking a look around and reading all the documentation, the first thing you'll want to do it change the addon's name. This has to be done in a number of places. A good name is short, lowercase and uses dashes between words. For example "internet-radio" is valid.
 - change the directory name to the addon id
@@ -47,11 +81,11 @@ After taking a look around and reading all the documentation, the first thing yo
 
 To test if everything went well, try running the addon manually with:
 
-python3 main.py
+`python3 main.py`
 
-If you are working on an addon with a UI, then you will want to start the addon normally. You can check its debug output with this command:
+If you are working on an addon with a UI, then you will want to start the addon through the controller's normal web interface. In that case you can check its debug output with this command:
 
-tail -f -n100 ~/.webthings/log/run-app.log
+`tail -f -n100 ~/.webthings/log/run-app.log`
 
 
 
@@ -61,7 +95,7 @@ tail -f -n100 ~/.webthings/log/run-app.log
 
 - You can change "primary type" to "extension" or "notifier" if you prefer. It's used to show a different icon.
 - The order of information in the manifest.json file matters. The order of the settings in the "properties" part of the "schema" part determines in which order the settings are displayed.
-- Required settings must be filled by the user before then are allowed to save the settings. Some parameters such as checkbox or slider always have a value, so making those required doesn't make much sense.
+- Required settings must be filled by the user before then are allowed to save the settings. Some parameters such as checkbox or slider always have a value, so adding them to the list of required settings doesn't make much sense.
 - The short name should be short yet unique. Preferably on word. This part isn't really used anywhere.. yet.
 
 
@@ -78,10 +112,11 @@ Each device can have one or more properties (booleans switches, values).
 
 For example, the Network Presence Detection addon does a scan for devices on the network, and then create a new Device for each devices that it discovers. Each device has certain properties (IP address, etc).
 
-You could say that the addon communicates with the controller through a hidden parent layer at the very top, the Proxy. This handles communication between the addon and the controller in the background. The Adapter, Devices and Property layer have methods to communicate with the Proxy when something (such as the value of a propery or the detection of a new device) has changed.
+You could say that the addon communicates with the controller through a hidden parent layer at the very top, the manager_proxy. This handles communication between the addon and the controller in the background. The Adapter, Devices and Property layer have methods to communicate with the Proxy when something (such as the value of a propery or the detection of a new device) has changed.
+If you're curious about all the available methods, have a look here: https://github.com/WebThingsIO/gateway-addon-python
 
 This layer also calls methods in the addon. For example:
-- when the user click on the (+) on the things overview, it calls the "start_pairing" method on the adapter. That way your adapter can react to this event, for example by doing a quick scan for devices. This pairing window lasts 60 seconds or until the user cancels it, at which point "candle_pairing" is called.
+- when the user click on the (+) on the things overview, it calls the "start pairing" method on the adapter. That way your adapter can react to this event, for example by doing a quick scan for devices. This pairing window lasts 60 seconds or until the user cancels it, at which point "cancle pairing" is called.
 - when the addon is stopped ( on a reboot or shutdown, or manually or on an update) the "unload" method is called. This allows you to do some quick cleanup and maybe store some data. Please don't take longer than a second to do all this.
 
 The addon is "the single point of truth" for its devices. After a reboot the controller will have forgetten the latest values of all devices and properties, so your addon should ideally keep track of the latest values of properties, and quickly recreate the devices and properties whenever the addon is started. That's what the "persistent data" parts are useful for.
@@ -98,6 +133,11 @@ That's why its useful to also store settings in an addon's own persistent data s
 Addons have a "data" folder where they are allowed to store any data they want, so this is the best place to store the persistent data (json) file too.
 
 
+## Getting an addon into the Candle app store
+
+This part is still under construction and will be added soon.
+
+
 ## More examples
 
 For a very simple real-world example or a pure extension, have a look at the Welcome addon. It communicates with the backend to store a single setting.
@@ -110,25 +150,13 @@ For a complex kitchen-sink addon, have a look at Voco. It's an adapter, API hand
 ## Troubleshooting
 
 - The package.sh and build.sh file need to have an execute permission on github. Unfortunately giving them that permission cannot be done through the web interface, so if you want your addon available to other you will have to learn a little about github.
-- Can't save a change in your file? It might be a permissions issue.
-- Addding "developer.txt" to /boot might give you more debug output. Use this command to generate that file: sudo touch /boot/developer.txt
+- Can't save a change in your file? It might be a permissions issue. A very bad way to fix this issue would be to use: `sudo chmod -R 777 ./` inside your addon's directory...
+- Addding "developer.txt" to /boot might give you more debug output. Use this command to generate that file: `sudo touch /boot/developer.txt`
 
 
 ## Tips
 
-These commands assume you are logged into the Raspberry Pi via SSH.
-
-- A quick way to restart the controller:
-sudo systemctl restart webthings-gateway.service
-
-
-- You can install samba on Raspberry Pi to more easily work on the addon. This command will do this automatically for you:
-curl -sSL www.candlesmarthome.com/tools/samba.txt | sudo bash
-
-To install Samba you will first have to disable the read only mode of the main partition, do:
-sudo raspi-config
-...and in the performance menu disable the overlay, and then reboot.
-
+- If you're working on an addon with a UI, it might get annoying to start and stop the addon each time you want to make a change to the backend. You can open the addon in one browser tab, then open another browser tab in which you disable the addon. Then start the addon from SSH with `python3 main.py`. The first tab's UI will be able to communicate with the backend that you just started.
 
 
 
