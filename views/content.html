@@ -21,41 +21,73 @@ Addons may add buttons to the top-right and bottom-right corner. Buttons to add 
             
             
             <div id="extension-example-addon1-main-page">
-                <h2>Main page</h2>
                 
-                <div id="extension-example-addon1-loading">
-                    <div class="extension-example-addon1-spinner">
-                        <div></div><div></div><div></div><div></div>
+                <div class="extension-example-addon1-centered-page"> <!-- This centered page div sets a maximum with for the content and centers it. -->
+                    
+                    <h2>Main page</h2>
+                
+                    <div id="extension-example-addon1-loading">
+                        <div class="extension-example-addon1-spinner">
+                            <div></div><div></div><div></div><div></div>
+                        </div>
                     </div>
+                    
+                    
+                    
+                    
+                    <div id="extension-example-addon1-main-items-list">(Items list will be loaded here)</div>
+                
+                    <p>Or you could show the state of the thing here. At least, the state of the thing when the addon loaded. </p>
+
+                    <div class="extension-example-addon1-area">
+                        <p>Slider value when the addon loaded: <span id="extension-example-addon1-slider-value-output">...</span></p>
+                    </div>
+                    
+                    <p>You could create an interval to continuously get the latest values, but that's something for a more advanced example.</p>
+                
+                    <!-- By having this button inside of this tab, it will be automatically hidden when it's pressed-->
+                    <button id="extension-example-addon1-show-second-page-button" class="icon-button"></button>
+        
                 </div>
                 
-                <div id="extension-example-addon1-main-items-list">(Items list will be loaded here)</div>
-                
-                <!-- By having this button inside of this tab, it will be automatically hidden when it's pressed-->
-                <button id="extension-example-addon1-show-second-page-button" class="icon-button"></button>
-        
             </div>
             
             
             
-            
-            <div id="extension-example-addon1-second-page" style="display:none">
+            <div id="extension-example-addon1-second-page">
                 
                 <div class="extension-example-addon1-centered-page"> <!-- This centered page div sets a maximum with for the content and centers it. -->
                 
         		<h2>Second page</h2>
-                <p>Do something else here. Or don't use a second page at all.</p>
+                <p>Do something else here. Maybe a settings page, or a page to add new items to the list, or don't use a second page at all.</p>
+                <p>It's up to you.</p>
                 
                 <div class="extension-example-addon1-area">
                     <p>This is an "area", which means it gets a slightly darker rounded background. In general padding is 2rem.</p>
-                    <p>This is useful as a way to indicate input forms, for example.</p>
+                    <p>This is useful as a way to indicate input forms, for example. In this case we'll show the number value from the settings:</p>
+                    <p>Settings number: <strong id="extension-example-addon1-number-setting-output"></strong></p>
                 </div>
-        
+                
+                
+                <div class="extension-example-addon1-area">
+                    <h3>Add new item</h3>
+                    <p>You could use this second page to allow users to add a new item to the list on the main page.</p>
+                    <input type="text" id="extension-example-addon1-add-item-name" placeholder="name" />
+                    <input type="number" id="extension-example-addon1-add-item-value" placeholder="value" />
+                    <button id="extension-example-addon1-add-item-button" class="text-button">Add</button>
+                </div>
+                
+                
         
                 <img src="/extensions/example-addon1/images/lotus.jpg" />
         
-                <!-- By having this button inside of this tab, it will be automatically hidden when it's pressed-->
-                <button id="extension-example-addon1-back-button" class="icon-button" aria-label="Back"></button>
+                <!-- 
+                By having this button inside of this tab, it will be automatically hidden when it's pressed.
+                Also, note there is a small container div around the button. This is done to make the area that can be hit sligtly bigger, so that it works better on touch screens.    
+                -->
+                <div id="extension-example-addon1-back-button-container">
+                    <button id="extension-example-addon1-back-button" class="back-button icon-button" data-l10n-id="back-button" aria-label="Back"></button>
+                </div>
         
             </div>
             
@@ -66,22 +98,20 @@ Addons may add buttons to the top-right and bottom-right corner. Buttons to add 
         <!-- This is the item that is cloned to create a list. The Zigbee2MQTT addon does this, for example. -->
 		<div id="extension-example-addon1-original-item" class="extension-example-addon1-item">
 
-            <div class="extension-example-addon1-item-left">
-                <div class="extension-example-addon1-play-icon"></div>
-            </div>
+            <div class="extension-example-addon1-item-main">
+                
+                <div class="extension-example-addon1-item-left">
+                    <div class="extension-example-addon1-item-icon">
+                        <!-- You could add an icon depending on the type of item -->
+                    </div>
+                </div>
             
-			<div class="extension-example-addon1-item-setter">
-				
-
-				<div class="extension-example-addon1-item-title">Item name</div>
+    			<div class="extension-example-addon1-item-setter">
+    				<h4 class="extension-example-addon1-item-name">Item name</h4>
+                    <div class="extension-example-addon1-item-value"></div>
+    			</div>
                 
-                <div class="extension-example-addon1-item-tags"></div>
-                
-				<div class="extension-example-addon1-item-line2">
-                    <div class="extension-example-addon1-item-url"></div>
-				</div>
-
-			</div>
+            </div>
 
 			<div class="extension-example-addon1-item-menu">
 				<div class="extension-example-addon1-item-right">

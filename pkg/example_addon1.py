@@ -87,16 +87,18 @@ class ExampleAddon1Adapter(Adapter):
 
         # set up some variables
         self.DEBUG = True
+        self.a_number_setting = 0
         
         # this is a completely random set of items. It is sent to the user interface through the API handler, which till turn it into a list
         self.items_list = [
-                        {'name':'item 1', 'value':55},
-                        {'name':'item 2', 'value':25},
-                        {'name':'item 3', 'value':88},
+                        {'name':'Item 1', 'value':55},
+                        {'name':'Item 2', 'value':25},
+                        {'name':'Item 4', 'value':200},
+                        {'name':'Item 3', 'value':88},
                     ]
 
 
-
+        
 
 
         # There is a very useful variable called "user_profile" that has useful values from the controller.
@@ -233,7 +235,7 @@ class ExampleAddon1Adapter(Adapter):
 
             if 'A number setting' in config:
                 #print("-Debugging was in config")
-                self.get_song_details = not bool(config['Do not get song details'])
+                self.a_number_setting = int(config['A number setting'])
                 if self.DEBUG:
                     print("A number setting preference was in config: " + str(not self.a_number_setting))
             
@@ -659,32 +661,68 @@ class ExampleAddon1APIHandler(APIHandler):
                         print("API handler is being called. Action: " + str(action))
                         print("request.body: " + str(request.body))
                     
+                    
                     # INIT
                     if action == 'init':
                         if self.DEBUG:
-                            print("in init")
+                            print("API: in init")
                         
                         return APIResponse(
                           status=200,
                           content_type='application/json',
-                          content=json.dumps({'thing_state' : self.adapter.persistent_data['state'], 'slider_value':self.adapter.persistent_data['slider'], 'debug': self.adapter.DEBUG, 'items_list':self.adapter.items_list}),
+                          content=json.dumps({
+                                      'a_number_setting':self.adapter.a_number_setting,
+                                      'thing_state' : self.adapter.persistent_data['state'],
+                                      'slider_value':self.adapter.persistent_data['slider'],
+                                      'items_list':self.adapter.items_list,
+                                      'debug': self.adapter.DEBUG
+                                      }),
                         )
                         
                     
-                    # DELETE
-                    elif action == 'delete':
+                    # ADD
+                    # The add API call append a new item to the list directly
+                    elif action == 'add':
                         if self.DEBUG:
-                            print("in delete")
-                        name = str(request.body['name'])
+                            print("API: in add")
+                        state = False
                         
                         try:
-                            # you could have some delete functionality here. In this case it does nothing.
+                            name = str(request.body['name'])
+                            value = str(request.body['value'])
+                            
+                            self.adapter.items_list.append( {'name':name, 'value':value} )
+                            
                             state = True
                             
                         except Exception as ex:
                             if self.DEBUG:
-                                print("Error deleting: " + str(ex))
+                                print("Error adding: " + str(ex))
                         
+                        
+                        return APIResponse(
+                          status=200,
+                          content_type='application/json',
+                          content=json.dumps({'state' : state}),
+                        )
+                    
+                    
+                    # DELETE
+                    # In this example we call out to a separate delete method instead of handling the action directly
+                    elif action == 'delete':
+                        if self.DEBUG:
+                            print("API: in delete")
+                        
+                        state = False
+                        
+                        try:
+                            name = str(request.body['name'])
+                            
+                            state = self.delete_item(name) # This method returns True if deletion was succesful
+                            
+                        except Exception as ex:
+                            if self.DEBUG:
+                                print("Error deleting: " + str(ex))
                         
                         return APIResponse(
                           status=200,
@@ -698,6 +736,10 @@ class ExampleAddon1APIHandler(APIHandler):
                         return APIResponse(
                             status=404
                         )
+                        
+                        
+                    
+                        
                         
                 except Exception as ex:
                     if self.DEBUG:
@@ -726,9 +768,18 @@ class ExampleAddon1APIHandler(APIHandler):
         # That's a lot of "apiResponse", but we need to make sure that there is always a response sent to the UI
 
 
-
-
-
-
+    
+    # Loop over all the items in the list, which is stored inside the adapter instance.
+    def delete_item(self,name):
+        print("in delete_item. Name: " + str(name))
+        for i in range(len(self.adapter.items_list)):
+            if self.adapter.items_list[i]['name'] == name:
+                # Found it
+                del self.adapter.items_list[i]
+                print("deleted item from list")
+                return True
+                
+        # If we end up there, the name wasn't found in the list
+        return False
 
 
