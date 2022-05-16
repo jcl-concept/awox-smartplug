@@ -8,16 +8,16 @@ If everything seems valid it will start the addon by calling the command mention
 
 There are a number of functionalities your addon can provide.
 
-####1.
+1.
 If you want your addon to bring new things to the controller, then you will want to create an "adapter". This is the default in this example - example-addon.py is an adapter.
 Adapters create "things". Even if your addon won't connect to actual things, making things is still useful because it's the best way for making rules to control with your addon. Rules can manipulate things, and thus manipulate your addon.
 
-####2.
+2.
 You may also want to add a new page to the controller's interface. That is done by creating an "extension". Extensions require you to have two parts:
 - The part that loads in the UI: a HTML file (view), a javascript file, a CSS file, and an SVG icon.
 - The backend part. This provides the addon's API which the javascript can then talk to. This is taken care of by an "API Handler", which in this example is loaded in
 
-####3.
+3.
 There is a rare third type, the "notifier". This is used to create an addon that sends notifications from the rules interface. Take a look at the Voco addon, which also adds two notifiers.
 
 This example is a hybrid of both an adapter and an API handler, with the adapter being the "primary" type. But an addon doesn't need to add things, it could just as well be a pure API handler, or a pure adapter. Most addons are currently pure adapters.
