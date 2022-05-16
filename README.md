@@ -2,7 +2,7 @@
 
 An add-on example for the Candle Controller (and Webthings Gateway), intended to help people get started with addon development in Python. The idea is that you can see how everything works, and remove what you don't need.
 
-The Controller starts the addon by calling "main.py", which in turns loads in example-addon.py from the pkg directory. The files in pkg will have the real meat and potatoes of what your addon does.
+The Controller starts the addon by calling "main.py", which in turns loads in example-addon1.py from the pkg directory. The files in pkg will have the real meat and potatoes of what your addon does.
 
 There are a number of things you addon can add.
 
@@ -38,6 +38,7 @@ After taking a look around and reading all the documentation, the first thing yo
 - change the directory name to the addon id
 - change the addon ID and other details in the manifest.json file
 - Do an exact search-and-replace "example-addon1" with your addon ID in the other files (python, javascript, CSS and html).
+- Do an exact search-and-replace "example_addon1" with your addon ID in the other files (python, javascript, CSS and html), but with the same lower dash.
 - Do an exact search-and-replace "ExampleAddon1" with your addon ID in camel case in the python and javascript files.
 - Change the addon ID in the .github/workflows file, package.sh and build.sh
 - If it doesn't exist yet: make a folder called ".git" inside the addon directory. Whenever the controller detects a .git folder inside the addon directory, it will skip the checksum security feature.
