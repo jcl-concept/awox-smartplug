@@ -2,23 +2,25 @@
 
 An add-on example for the Candle Controller (and Webthings Gateway), intended to help people get started with addon development in Python. The idea is that you can see how everything works, and remove what you don't need.
 
-The Controller starts the addon by calling "main.py", which in turns loads in example-addon1.py from the pkg directory. The files in pkg will have the real meat and potatoes of what your addon does.
+The Controller normally starts by validating the manifest.json files. For example, the directory name and addon ID should be the same. It also makes sure that the checksums of all the files match. You can get the controller to skip this validation by creating a directory called ".git" in the addon's folder. This is useful for development.
 
-There are a number of things you addon can add.
+If everything seems valid it will start the addon by calling the command mentioned in the manifest file, in this case "python3 main.py". Then main.py in turns loads in example-addon1.py from the pkg directory. The file(s) in pkg will have the real meat and potatoes of what your addon does.
 
-1.
+There are a number of functionalities your addon can provide.
+
+####1.
 If you want your addon to bring new things to the controller, then you will want to create an "adapter". This is the default in this example - example-addon.py is an adapter.
 Adapters create "things". Even if your addon won't connect to actual things, making things is still useful because it's the best way for making rules to control with your addon. Rules can manipulate things, and thus manipulate your addon.
 
-2.
+####2.
 You may also want to add a new page to the controller's interface. That is done by creating an "extension". Extensions require you to have two parts:
 - The part that loads in the UI: a HTML file (view), a javascript file, a CSS file, and an SVG icon.
 - The backend part. This provides the addon's API which the javascript can then talk to. This is taken care of by an "API Handler", which in this example is loaded in
 
-3.
+####3.
 There is a rare third type, the "notifier". This is used to create an addon that sends notifications from the rules interface. Take a look at the Voco addon, which also adds two notifiers.
 
-This example is a hybrid of both an adapter and an API handler, with the adapter being the "primary" type. But an addon that doesn't need to add things, it could also be just a pure API handler.
+This example is a hybrid of both an adapter and an API handler, with the adapter being the "primary" type. But an addon doesn't need to add things, it could just as well be a pure API handler, or a pure adapter. Most addons are currently pure adapters.
 
 
 
