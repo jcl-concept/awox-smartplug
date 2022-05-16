@@ -30,9 +30,9 @@ This example is a hybrid of both an adapter and an API handler, with the adapter
 - package.sh will turn your code into a tar archive, which is what users download to their device when they installl an addon. The controller also detects any errors in the download process using the SHA checksum files.
 - SHA256SUMS. These provides a checksum for each file in the addon. If the controller detects that the checksum for any file no longer match, the addon will not be started. Think of it as a security feature to avoid manipulation.
 - LICENSE describes which (open source) license the addon is made available under.
-- requirements.txt contains a list of python dependencies for your addon. The package.sh script will download and place these dependencies in the lib directory.
-- .github/workflows is a file that can be used to automate creation of the addon by Github. If you upload your addon to github, whenever you create a new release, this will generate two new files: a .tar file and a checksum file. These are required to get your addon into the app store.
-- build.sh is a file that is part of the Github release process. It creates a virtual machine that emulates a Raspberry Pi, and calls package.sh. This is needed if you are using python libraries that need this emulation.
+- requirements.txt contains a list of Python dependencies for your addon. The package.sh script will download and place these dependencies in the lib directory.
+- .github/workflows/release.yml is a file that can be used to automate creation of the addon by Github. If you upload your addon to github, whenever you create a new release, this will generate two new files: a .tar file and a checksum file. These are required to get your addon into the app store (details below).
+- optional build.sh is a file that is part of the Github release process. It creates a virtual machine that emulates a Raspberry Pi, and in turns calls package.sh. This is needed if you are using python libraries that need this emulation. This simple example doesn't currently use this method.
 
 
 ## Getting started
@@ -76,7 +76,7 @@ After taking a look around and reading all the documentation, the first thing yo
 - Do an exact search-and-replace "example-addon1" with your addon ID in the other files (python, javascript, CSS and html).
 - Do an exact search-and-replace "example_addon1" with your addon ID in the other files (python, javascript, CSS and html), but with the same lower dash.
 - Do an exact search-and-replace "ExampleAddon1" with your addon ID in camel case in the python and javascript files.
-- Change the addon ID in the .github/workflows file, package.sh and build.sh
+- Change the addon ID in the .github/workflows file, package.sh and (optional) build.sh
 - If it doesn't exist yet: make a folder called ".git" inside the addon directory. Whenever the controller detects a .git folder inside the addon directory, it will skip the checksum security feature.
 
 To test if everything went well, try running the addon manually with:
@@ -133,16 +133,44 @@ That's why its useful to also store settings in an addon's own persistent data s
 Addons have a "data" folder where they are allowed to store any data they want, so this is the best place to store the persistent data (json) file too.
 
 
-## Getting an addon into the Candle app store
+## Getting your addon into the Candle app store
 
-This part is still under construction and will be added soon.
+This part is still under construction and more will be added soon.
+
+Generally there are two steps: 
+1. get your addon onto Github and generate your first official release
+2. get our first release accepted into an addons list. (There are two addons lists: Webthings and Candle)
+
+Getting your addon onto Github will require a little knowledge of how Github works.
+- Upload your code to Github. The `package.sh` and (optional) `build.sh` file will need to have execution permission.
+- The github/workflow/release.yml file will need to reflect if you're using the simple package.sh only approach or the build.sh + package.sh approach.
+- On Github create an initial release for your addon. This will start the Github action described in the workflow file. After waiting a minute or a few hours - depending on the complexity of your addon - you will have extra files on your release page.
+
+These files will be something like you see here: https://github.com/createcandle/power-settings/releases (random example)
+
+- your-addon-name-0.0.1.tgz
+- your-addon-name-0.0.1.tgz.sha256sum
+- Source code (zip)
+- Source code (tar.gz)
+
+
+Now you can propose your own entry in one of the addon lists. You might want to try and get your addon accepted by the Webthings Gateway project (which Candle builds on) first. That way more people will be able to enjoy your work, and if it gets accepted there it will also show up in the Candle app store.
+https://github.com/WebThingsIO/addon-list
+
+If your addon is "too wild" for the Webthings community, then you can try getting it into the Candle list:
+https://github.com/createcandle/addons-list
+
+Either way you'll need to provide:
+- The download URL of your tgz file. The .tgz file is what gets downloaded onto a user's system and extracted into the addon directory.
+- A checksum for that file. Download the .tgz.sha256sum file and you will find the checksum value inside - a long string of seemingly random letters and number.
+
 
 
 ## More examples
 
 For a very simple real-world example or a pure extension, have a look at the Welcome addon. It communicates with the backend to store a single setting.
 
-For a more complex addon, take a look at the Web Interface addon. It has tabs, and hooks into the javascipt API inside the web browser.
+For a more complex addon, take a look at the Web Interface addon. It has tabs, and hooks into the javascript API inside the web browser.
 
 For a complex kitchen-sink addon, have a look at Voco. It's an adapter, API handler and notifier, all in one.
 
@@ -157,6 +185,6 @@ For a complex kitchen-sink addon, have a look at Voco. It's an adapter, API hand
 ## Tips
 
 - If you're working on an addon with a UI, it might get annoying to start and stop the addon each time you want to make a change to the backend. You can open the addon in one browser tab, then open another browser tab in which you disable the addon. Then start the addon from SSH with `python3 main.py`. The first tab's UI will be able to communicate with the backend that you just started.
-
+- You may enjoy the Seashell addon, which lets you run shell commands from the user interface.
 
 
