@@ -129,8 +129,13 @@
 			});
             
             
+            // Scroll the content container to the top
+            document.getElementById('extension-example-addon1-view').scrollTop = 0;
+            
             // Finally, request the first data from the addon's API
             this.get_init_data();
+            
+            
 		}
 		
 	
