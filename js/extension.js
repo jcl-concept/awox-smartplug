@@ -117,12 +117,18 @@
             document.getElementById('extension-example-addon1-show-second-page-button').addEventListener('click', (event) => {
                 console.log("clicked on + button");
                 document.getElementById('extension-example-addon1-content-container').classList.add('extension-example-addon1-showing-second-page');
+                
+                // iPhones need this fix to make the back button lay on top of the main menu button
+                document.getElementById('extension-example-addon1-view').style.zIndex = '3';
 			});
             
             // Back button, shows main page
             document.getElementById('extension-example-addon1-back-button-container').addEventListener('click', (event) => {
                 console.log("clicked on back button");
                 document.getElementById('extension-example-addon1-content-container').classList.remove('extension-example-addon1-showing-second-page');
+                
+                // Undo the iphone fix, so that the main menu button is clickable again
+                document.getElementById('extension-example-addon1-view').style.zIndex = 'auto';
                 
                 this.get_init_data(); // repopulate the main page
                 
