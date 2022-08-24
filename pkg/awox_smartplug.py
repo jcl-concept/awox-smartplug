@@ -25,6 +25,8 @@ import time
 #import threading
 #import subprocess
 
+import pySmartPlugSmpB16
+
 # This loads the parts of the addon.
 from gateway_addon import Database, Adapter, Device, Property, APIHandler, APIResponse
 # Database - needed to read from the settings database. If your addon doesn't have any settings, then you don't need this.
@@ -36,7 +38,7 @@ from gateway_addon import Database, Adapter, Device, Property, APIHandler, APIRe
 # APIHandler. Needed if you want to provide an API for a UI extension.
 # APIResponse. Needed if you want to provide an API for a UI extension.
 
-# This addon does not load part from other files, but if you had a big addon you might want to split it into separate parts. For example, you could have a file called "example_addon1_api_handler.py" at the same level as example_addon1.py, and import it like this:
+# This addon does not load part from other files, but if you had a big addon you might want to split it into separate parts. For example, you could have a file called "awox_smartplug_api_handler.py" at the same level as awox_smartplug.py, and import it like this:
 #try:
 #    from .internet_radio_api_handler import *
 #    print("APIHandler imported")
@@ -66,7 +68,7 @@ if 'WEBTHINGS_HOME' in os.environ:
 # - - Property  
 # - Api handler
 
-class ExampleAddon1Adapter(Adapter):
+class AwoxSmartplugAdapter(Adapter):
     """Adapter for addon """
 
     def __init__(self, verbose=False):
@@ -79,7 +81,7 @@ class ExampleAddon1Adapter(Adapter):
         print("Starting adapter init")
 
         self.ready = False # set this to True once the init process is complete.
-        self.addon_name = 'example-addon1'
+        self.addon_name = 'awox-smartplug'
         
         
         self.name = self.__class__.__name__ # TODO: is this needed?
@@ -160,7 +162,7 @@ class ExampleAddon1Adapter(Adapter):
         try:
             if self.DEBUG:
                 print("starting api handler")
-            self.api_handler = ExampleAddon1APIHandler(self, verbose=True)
+            self.api_handler = AwoxSmartplugAPIHandler(self, verbose=True)
             if self.DEBUG:
                 print("Adapter: API handler initiated")
         except Exception as e:
@@ -171,20 +173,20 @@ class ExampleAddon1Adapter(Adapter):
         # Create the thing
         try:
             # Create the device object
-            example_addon1_device = ExampleAddon1Device(self)
+            awox_smartplug_device = AwoxSmartplugDevice(self)
             
             # Tell the controller about the new device that was created. This will add the new device to self.devices too
-            self.handle_device_added(example_addon1_device)
+            self.handle_device_added(awox_smartplug_device)
             
             if self.DEBUG:
-                print("example_addon1_device created")
+                print("awox_smartplug_device created")
                 
             # You can set the device to connected or disconnected. If it's in disconnected state the thing will visually be a bit more transparent.
-            self.devices['example-addon1-thing'].connected = True
-            self.devices['example-addon1-thing'].connected_notify(True)
+            self.devices['awox-smartplug-thing'].connected = True
+            self.devices['awox-smartplug-thing'].connected_notify(True)
 
         except Exception as ex:
-            print("Could not create internet_radio_device: " + str(ex))
+            print("Could not create awox_smartplug_device: " + str(ex))
 
 
         
@@ -265,7 +267,7 @@ class ExampleAddon1Adapter(Adapter):
         
             # We tell the property to change its value. This is a very round-about way, and you could place all this logic inside the property instead. It's a matter of taste.
             try:
-                self.devices['example-addon1-thing'].properties['state'].update( state )
+                self.devices['awox-smartplug-thing'].properties['state'].update( state )
             except Exception as ex:
                 print("error setting state on thing: " + str(ex))
         
@@ -284,7 +286,7 @@ class ExampleAddon1Adapter(Adapter):
             self.save_persistent_data() 
         
             try:
-                self.devices['example-addon1-thing'].properties['slider'].update( value )
+                self.devices['awox-smartplug-thing'].properties['slider'].update( value )
             except Exception as ex:
                 print("error setting slider value on thing: " + str(ex))
             
@@ -305,7 +307,7 @@ class ExampleAddon1Adapter(Adapter):
             self.send_pairing_prompt("new dropdown value: " + str(value))
         
             try:
-                self.devices['example-addon1-thing'].properties['dropdown'].update( value )
+                self.devices['awox-smartplug-thing'].properties['dropdown'].update( value )
             except Exception as ex:
                 print("error setting dropdown value on thing: " + str(ex))
         
@@ -340,12 +342,12 @@ class ExampleAddon1Adapter(Adapter):
             print("Bye!")
             
         try:
-            self.devices['example-addon1-thing'].properties['status'].update( "Bye")
+            self.devices['awox-smartplug-thing'].properties['status'].update( "Bye")
         except Exception as ex:
             print("Error setting status on thing: " + str(ex))
         
         # Tell the controller to show the device as disconnected. This isn't really necessary, as the controller will do this automatically.
-        self.devices['example-addon1-thing'].connected_notify(False)
+        self.devices['awox-smartplug-thing'].connected_notify(False)
         
         # A final chance to save the data.
         self.save_persistent_data()
@@ -418,8 +420,8 @@ class ExampleAddon1Adapter(Adapter):
 # - Api handler
 
 
-class ExampleAddon1Device(Device):
-    """Internet Radio device type."""
+class AwoxSmartplugDevice(Device):
+    """Awox Smartplug device type."""
 
     def __init__(self, adapter):
         """
@@ -427,17 +429,20 @@ class ExampleAddon1Device(Device):
         adapter -- the Adapter managing this device
         """
 
-        Device.__init__(self, adapter, 'example-addon1')
+        Device.__init__(self, adapter, 'awox-smartplug')
 
-        self._id = 'example-addon1-thing' # TODO: probably only need the first of these
-        self.id = 'example-addon1-thing'
+        self._id = 'awox-smartplug-thing' # TODO: probably only need the first of these
+        self.id = 'awox-smartplug-thing'
         self.adapter = adapter
         self.DEBUG = adapter.DEBUG
 
         self.name = 'thing1' # TODO: is this still used? hasn't this been replaced by title?
-        self.title = 'Example addon 1 thing'
+        self.title = 'AWOX Smartplug'
         self.description = 'Write a description here'
-        
+
+        # connect to the plug with bluetooth address
+        self.plug = pySmartPlugSmpB16.SmartPlug('e0:e5:cf:1e:a7:c1')
+
         # We give this device a "capability". This will cause it to have an icon that indicates what it can do. 
         # Capabilities are always a combination of giving a this a capability type, and giving at least one of its properties a capability type.
         # For example, here the device is a "multi level switch", which means it should have a boolean toggle property as well as a numeric value property
@@ -450,7 +455,7 @@ class ExampleAddon1Device(Device):
             # Let's add four properties:
             
             # This create a toggle switch property
-            self.properties["state"] = ExampleAddon1Property(
+            self.properties["state"] = AwoxSmartplugProperty(
                             self,
                             "state",
                             {
@@ -463,7 +468,7 @@ class ExampleAddon1Device(Device):
                             
                             
             # Creates a percentage slider
-            self.properties["slider"] = ExampleAddon1Property( # (here "slider" is just a random name)
+            self.properties["slider"] = AwoxSmartplugProperty( # (here "slider" is just a random name)
                             self,
                             "slider",
                             {
@@ -479,7 +484,7 @@ class ExampleAddon1Device(Device):
                         
                         
             # This property shows a simple string in the interface. The user cannot change this string in the UI, it's "read-only" 
-            self.properties["status"] = ExampleAddon1Property(
+            self.properties["status"] = AwoxSmartplugProperty(
                             self,
                             "status",
                             {
@@ -490,7 +495,7 @@ class ExampleAddon1Device(Device):
                             "Hello world")
 
 
-            self.properties["dropdown"] = ExampleAddon1Property(
+            self.properties["dropdown"] = AwoxSmartplugProperty(
                             self,
                             "dropdown",
                             {
@@ -521,7 +526,7 @@ class ExampleAddon1Device(Device):
 # - - Property  <- you are here
 # - Api handler
 
-class ExampleAddon1Property(Property):
+class AwoxSmartplugProperty(Property):
 
     def __init__(self, device, name, description, value):
         # This creates the initial property
@@ -570,6 +575,8 @@ class ExampleAddon1Property(Property):
             # self.update(value)
             
             if self.id == 'state':
+                if value == True: self.device.plug.on()
+                else:  self.device.plug.off()
                 self.device.adapter.set_state(bool(value))
         
             elif self.id == 'slider':
@@ -613,7 +620,7 @@ class ExampleAddon1Property(Property):
 
 
 
-class ExampleAddon1APIHandler(APIHandler):
+class AwoxSmartplugAPIHandler(APIHandler):
     """API handler."""
 
     def __init__(self, adapter, verbose=False):

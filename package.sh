@@ -40,7 +40,7 @@ cd -
 
 # Make the tarball
 echo "creating archive"
-TARFILE="example-addon1-${version}${TARFILE_SUFFIX}.tgz"
+TARFILE="awox-smartplug-${version}${TARFILE_SUFFIX}.tgz"
 tar czf ${TARFILE} package
 
 echo "creating shasums"

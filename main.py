@@ -11,7 +11,7 @@ import time
 sys.path.append(path.join(path.dirname(path.abspath(__file__)), 'lib'))
 
 # Change this to reflect your addon's adapter class. It should be the same as the name in the:
-from pkg.example_addon1 import ExampleAddon1Adapter  # noqa
+from pkg.awox_smartplug import AwoxSmartplugAdapter  # noqa
 
 
 _DEBUG = False
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, cleanup)
     
     # Change this to the correct name too:
-    _ADAPTER = ExampleAddon1Adapter(verbose=_DEBUG)
+    _ADAPTER = AwoxSmartplugAdapter(verbose=_DEBUG)
     
     # Wait until the proxy stops running, indicating that the gateway shut us
     # down.

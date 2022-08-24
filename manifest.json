@@ -1,6 +1,6 @@
 {
-  "author": "Write your name here",
-  "description": "Write a short description of what your addon does here. This will be shown in the app store.",
+  "author": "OxyLab",
+  "description": "Pilotage des prises Bluetooth AWOX.",
   "content_scripts": [
     {
       "css": [
@@ -19,11 +19,11 @@
       "strict_min_version": "1.1.0"
     }
   },
-  "homepage_url": "https://github.com/createcandle/example-addon",
-  "id": "example-addon1",
+  "homepage_url": "https://github.com/createcandle/awox-smartplug",
+  "id": "awox-smartplug",
   "license": "MIT",
   "manifest_version": 1,
-  "name": "Example addon 1 human readable name",
+  "name": "AWOX Smartplug",
   "options": {
     "default": {
 	  "A boolean setting": false,
@@ -71,7 +71,7 @@
       "type": "object"
     }
   },
-  "short_name": "example1",
+  "short_name": "awoxsmartplug",
   "version": "0.0.1",
   "web_accessible_resources": [
     "css/*.css",
